@@ -975,18 +975,12 @@
     for(const b of s.projectiles){
       if(b.delay>0)continue;
       const mid=PROJECT(b.x,b.y);
-      const ox=PROJECT(b.ox??b.x,b.oy??b.y);
       const isArc=b.type==='shell'||b.type==='flak';
       const progress=Math.min(1,b.age/(b.type==='shell'?1.7:1.25));
       const altitude=isArc?Math.sin(progress*Math.PI)*Math.min(73,TILE*.75):0;
       if(isArc){
-        // Ground shadow plus luminous ascending/descending arc for the shell.
+        // Animate the projectile's arcing height without drawing a trajectory line.
         ellipse(mid.x+3,mid.y+5,Math.max(3,6*(1-progress*.45)),3,'rgba(0,11,24,.38)');
-        ctx.beginPath();ctx.moveTo(ox.x,ox.y-8);
-        ctx.quadraticCurveTo((ox.x+mid.x)/2,(ox.y+mid.y)/2-Math.min(96,TILE),mid.x,mid.y-altitude);
-        ctx.lineWidth=b.type==='flak'?1.5:2.5;
-        ctx.strokeStyle=b.type==='flak'?'rgba(255,220,159,.42)':'rgba(255,215,118,.59)';
-        ctx.stroke();
         ctx.shadowColor='#ffc567';ctx.shadowBlur=10;
         ellipse(mid.x,mid.y-altitude,b.type==='flak'?3.5:5,b.type==='flak'?3.5:5,'#ffe2aa');
         ctx.shadowBlur=0;
