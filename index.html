@@ -4,6 +4,15 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<meta name="theme-color" content="#071425"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="STEAM Battleship"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="format-detection" content="telephone=no"/>
+<link rel="manifest" href="./manifest.webmanifest"/>
+<link rel="icon" type="image/svg+xml" href="./icons/steam-battleship.svg"/>
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png"/>
 <meta content="#071425" name="theme-color"/>
 <meta content="STEAM Battleship by MrDhameri: one question unlocks one attack in a fast-paced educational naval duel." name="description"/>
 <title>STEAM BATTLESHIP by MrDhameri</title>
@@ -170,6 +179,45 @@
 #sound-btn[aria-expanded=true]{border-color:#5de4d5;background:#164b52;color:#eafff4}
 @media(max-width:600px){.audio-panel{right:0;top:44px}.audio-panel-title{font-size:12px}}
 
+
+/* Cross-platform mobile-web / standalone iOS support. Keep the board legible
+   and prevent horizontal overflow on portrait iPhone Safari. */
+html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
+.app-shell{min-height:100svh}
+.topbar{padding-top:max(10px,env(safe-area-inset-top));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+.battle{min-width:0;padding-left:max(7px,env(safe-area-inset-left));padding-right:max(7px,env(safe-area-inset-right))}
+.sea-frame{width:100%;max-width:100%;min-width:0}
+#battle-canvas{width:100%;max-width:100%;display:block;touch-action:manipulation}
+.controls-grid,.control-panel,.console-body,.scoreboard,.fleet,.workshop-grid,.workshop-bay,.workshop-editor{min-width:0;max-width:100%}
+.control-panel{overflow:hidden}
+.invite-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px}
+.invite-actions .secondary-btn{flex:1;min-width:135px;max-width:230px}
+.ios-tip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;margin:0 0 13px;color:#c7e9ef;background:#0d3345;border:1px solid #357d85;border-radius:10px;font-size:12px;line-height:1.45}
+.ios-tip strong{color:#a5f2dc}
+.ios-tip button{flex:none;border:0;background:transparent;color:#d0f4f6;font-size:17px;padding:4px 8px}
+@media(max-width:850px){
+ .topbar{gap:7px}
+ .brand{gap:6px;min-width:0}
+ .brand-title{font-size:clamp(10px,2.1vw,14px);letter-spacing:0}
+ .top-actions{gap:5px}
+ .top-actions .icon-btn{min-width:35px;padding:7px}
+ .workshop-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:760px){
+ .controls-grid,.controls-grid.single{grid-template-columns:minmax(0,1fr);width:100%}
+ .battle{padding-top:5px}
+ .scoreboard{grid-template-columns:minmax(0,1fr) 15px minmax(0,1fr);gap:5px}
+ .ship-hp{white-space:normal;overflow-wrap:anywhere}
+ .ship-hp .hp-small{flex:none}
+ .sea-frame canvas{width:100%;max-width:100%;height:auto}
+ .quiz-options{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+ .quiz-option{padding:10px 8px;font-size:clamp(11px,3vw,14px)}
+ .weapon-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .setup-cols{grid-template-columns:minmax(0,1fr)}
+ .workshop-play{grid-template-columns:1fr 1fr}
+}
+@media(max-width:360px){.quiz-options{grid-template-columns:1fr}.weapon-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 </style>
 </head>
 <body>
@@ -192,6 +240,7 @@
 <main>
 <section class="lobby" id="lobby">
 <div class="workshop-heading"><div class="workshop-kicker">YOUR FLEET • YOUR DESIGN</div><h1>SHIP <span>WORKSHOP</span></h1></div>
+<div class="ios-tip hidden" id="ios-tip" role="note"><span><strong>iPhone &amp; iPad:</strong> In Safari, tap Share <span aria-hidden="true">⇧</span> then Add to Home Screen to install the game.</span><button type="button" id="ios-tip-dismiss" aria-label="Dismiss iPhone install tip">✕</button></div>
 <div class="workshop-grid">
   <div class="workshop-preview-pane"><div class="workshop-pane-head"><span>VESSEL PREVIEW</span><span id="bay-id">CAPTAIN 1</span></div>
     <canvas id="ship-preview" width="720" height="360" aria-label="Live preview of your ship design"></canvas>
@@ -229,7 +278,7 @@
 
 </div>
 </section>
-<section class="waiting hidden" id="waiting"><div class="setup-card wait-box"><div aria-hidden="true" class="wait-spinner"></div><h2 id="wait-title">CREATING ROOM...</h2><div class="hidden" id="room-share"><div class="setup-label">YOUR ROOM CODE</div><div class="share-code" id="share-code">------</div><button class="secondary-btn" id="copy-invite" type="button">COPY LINK</button></div><p id="wait-status" role="status">Connecting to signaling service…</p><div id="room-roster" class="room-roster"></div><button id="start-match" class="primary-btn hidden" type="button">START MATCH</button><button class="back-link" id="cancel-wait" type="button">CANCEL</button></div></section>
+<section class="waiting hidden" id="waiting"><div class="setup-card wait-box"><div aria-hidden="true" class="wait-spinner"></div><h2 id="wait-title">CREATING ROOM...</h2><div class="hidden" id="room-share"><div class="setup-label">YOUR ROOM CODE</div><div class="share-code" id="share-code">------</div><div class="invite-actions"><button class="secondary-btn" id="copy-invite" type="button">COPY LINK</button><button class="secondary-btn" id="share-invite" type="button">SHARE INVITE</button></div></div><p id="wait-status" role="status">Connecting to signaling service…</p><div id="room-roster" class="room-roster"></div><button id="start-match" class="primary-btn hidden" type="button">START MATCH</button><button class="back-link" id="cancel-wait" type="button">CANCEL</button></div></section>
 <section class="battle hidden" id="battle">
 <div class="battle-heading"><div></div><div class="battle-metrics"><span class="room-chip hidden" id="room-chip">ROOM ------</span></div></div>
 <div class="scoreboard"><div class="fleet fleet-one" id="fleet-blue"></div><div class="score-vs">⚔</div><div class="fleet fleet-two" id="fleet-red"></div></div>
@@ -1057,7 +1106,26 @@
   $('menu-btn').addEventListener('click',()=>{if(window.confirm('Leave the current match?'))resetToLobby();});
   $('end-menu-btn').addEventListener('click',resetToLobby);
   $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){audio.start();engine=new Game(roster,true,roomProfiles);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
-  $('copy-invite').addEventListener('click',async()=>{const url=new URL(window.location.href);url.searchParams.set('join',room);url.hash='';try{await navigator.clipboard.writeText(url.toString());$('copy-invite').textContent='✓ COPIED';}catch(_e){window.prompt('Copy this link to share:',url.toString());}});
+  function roomInviteUrl(){
+    // Always share the hosted web app, not an Android appassets:// offline URL.
+    // This exact URL works on iOS Safari, Android Chrome and desktop browsers.
+    const url=new URL('https://mohammaddhameri-blip.github.io/stem-battleship/');
+    url.searchParams.set('join',room);return url.toString();
+  }
+  $('copy-invite').addEventListener('click',async()=>{
+    const url=roomInviteUrl();
+    try{await navigator.clipboard.writeText(url);$('copy-invite').textContent='✓ COPIED';}
+    catch(_e){window.prompt('Copy this link to share:',url);}
+  });
+  $('share-invite').addEventListener('click',async()=>{
+    const url=roomInviteUrl();
+    if(navigator.share){
+      try{await navigator.share({title:'STEAM Battleship',text:'Join my STEAM Battleship room: '+room,url});return;}
+      catch(e){if(e?.name==='AbortError')return;}
+    }
+    try{await navigator.clipboard.writeText(url);$('share-invite').textContent='✓ LINK COPIED';}
+    catch(_e){window.prompt('Share this room link:',url);}
+  });
   $('sound-btn').addEventListener('click',()=>{
     audio.unlock();
     const panel=$('audio-panel'),wasHidden=panel.classList.contains('hidden');
@@ -1089,13 +1157,32 @@
   });
   syncAudioControls();
   const joinParam=new URLSearchParams(window.location.search).get('join');if(joinParam&&/^[A-Z0-9]{6}$/i.test(joinParam)){$('room-code').value=joinParam.toUpperCase();show('online-setup');}
+  // Apple Safari home-screen installation and native standalone mode.
+  function isIosSafari(){
+    const ua=navigator.userAgent||'';
+    const ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    return ios&&/Safari/.test(ua)&&!/CriOS|FxiOS|EdgiOS/.test(ua);
+  }
+  function standaloneMode(){
+    return navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+  }
+  if(isIosSafari()&&!standaloneMode()&&!sessionStorage.getItem('steam-ios-tip-dismissed'))$('ios-tip').classList.remove('hidden');
+  $('ios-tip-dismiss').addEventListener('click',()=>{
+    $('ios-tip').classList.add('hidden');
+    try{sessionStorage.setItem('steam-ios-tip-dismissed','1');}catch(_e){}
+  });
+  // Safari 16.4+ supports standalone PWAs and the standard service worker
+  // cache. Keep appassets Android APK separate to avoid intercepting its URL.
+  if('serviceWorker' in navigator&&window.location.hostname==='mohammaddhameri-blip.github.io'){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{}),{once:true});
+  }
   // A short help panel keeps the board uncluttered until needed.
   $('help-btn').addEventListener('click',()=>{$('help-overlay').classList.remove('hidden');});
   $('close-help').addEventListener('click',()=>{$('help-overlay').classList.add('hidden');});
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.0-original-battle-audio',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.1-cross-platform-pwa',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
