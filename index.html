@@ -491,8 +491,10 @@
           const owner=this.player(plane.owner);
           if(owner){
             const target=this.player(plane.targetId);
-            const x=plane.aimCol+.5+(owner.team===0?-.9:.9);
-            const y=CLAMP(plane.aimRow-1.2,.2,ROWS-.2);
+            const x=plane.aimCol+.5;
+            const dropCenter=PROJECT(x,plane.aimRow+.5);
+            // Missile visibly separates from the bomber at the moment of release.
+            const y=(CLAMP(dropCenter.y-80,85,H-105)-ORIGIN_Y)/TILE;
             // Only one missile. Correct answers guide it to a target;
             // wrong answers drop it unguided, with a chance to hit.
             this.projectile(owner,'airstrike',180,plane.volley,0,target?.hp>0?target.id:null,{x,y});
@@ -883,7 +885,7 @@
       const center=PROJECT(plane.aimCol+.5,plane.aimRow+.5);
       // Silhouette passes directly over the selected enemy vessel at release.
       const face=plane.team===0?1:-1;
-      const x=center.x+face*(plane.age-.95)*305,y=center.y-100;
+      const x=center.x+face*(plane.age-.95)*305,y=CLAMP(center.y-80,85,H-105);
       const fade=Math.min(1,plane.age*3,Math.max(0,(2.8-plane.age)*2));
       ctx.save();ctx.translate(x,y);ctx.scale(face,1);ctx.globalAlpha=fade;
       ellipse(8,46,86,13,'rgba(1,12,22,.27)');
