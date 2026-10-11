@@ -209,7 +209,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const W=1200,H=640,MAX_HP=150,MAX_PLAYERS=6;
-  const SPEED={shell:6.5,flak:6.7,torpedo:5.2,homing:6.4};
+  const SPEED={shell:6.5,flak:6.7,torpedo:5.2,airstrike:6.4};
   // Grid expands from 10x6 (1v1) to 14x8 (2v2) to 18x10 (3v3).
   let COLS=10,ROWS=6,SPLIT=5,TILE=100,ORIGIN_X=100,ORIGIN_Y=20;
   function setBoard(n){const size=n<=1?[10,6]:n===2?[14,8]:[18,10];COLS=size[0];ROWS=size[1];SPLIT=COLS/2;TILE=Math.min((W-52)/COLS,(H-36)/ROWS);ORIGIN_X=(W-COLS*TILE)/2;ORIGIN_Y=(H-ROWS*TILE)/2;}
@@ -283,11 +283,11 @@
   }
 
   const AMMO={
-    shell:{name:'SHELL',short:'SHELL',damage:25,min:0,stock:Infinity,hint:'25 DMG'},
-    flak:{name:'FLAK',short:'FLAK',damage:10,min:0,stock:3,hint:'5 × 10'},
+    shell:{name:'SHELL',short:'SHELL',damage:10,min:0,stock:Infinity,hint:'10 DMG'},
+    flak:{name:'FLAK',short:'FLAK',damage:5,min:0,stock:3,hint:'3 × 5'},
     torpedo:{name:'TORPEDO',short:'TORPEDO',damage:50,min:3,stock:3,hint:'50 DMG'},
-    repair:{name:'REPAIR',short:'REPAIR',damage:0,min:0,stock:Infinity,hint:'30% / 5% HP'},
-    homing:{name:'HOMING',short:'HOMING',damage:MAX_HP*.4,min:0,stock:1,hint:'40% HP'}
+    repair:{name:'REPAIR',short:'REPAIR',damage:0,min:0,stock:Infinity,hint:'+35 HP'},
+    airstrike:{name:'AIRSTRIKE',short:'AIRSTRIKE',damage:35,min:0,stock:1,hint:'B-2 · 35 DMG'}
   };
   const SCIENCE = [
     ['Which force pulls objects towards Earth?','Gravity',['Gravity','Friction','Magnetism','Air resistance']],
@@ -339,7 +339,7 @@
     }
     return {id:questionCounter,kind:'number',text,answer:String(answer)};
   }
-  function makePlayer(id,team,col,row,profile){return {id,team,col,row,profile:cleanProfile(profile,id),hp:MAX_HP,angle:0,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,homing:0},stage:'question',defenseOpen:false,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile){return {id,team,col,row,profile:cleanProfile(profile,id),hp:MAX_HP,angle:0,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
     constructor(ids=[0,1],online=false,profiles=null){
       this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
@@ -348,38 +348,32 @@
       setBoard(Math.max(...counts));
       const positions=[0,0];
       this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id]);});
-      this.projectiles=[];this.effects=[];this.pickups=[];this.winner=null;this.version=1;this.eventId=1;this.notice='';this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};this.eligible=new Set();this.targetMarker=null;
-      this.evaluateLone();
+      this.projectiles=[];this.airstrikes=[];this.effects=[];this.pickups=[];
+      this.winner=null;this.version=1;this.eventId=1;this.notice='';
+      this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};
+      this.missStreak=[0,0]; // Consecutive missed volleys by each opposing TEAM.
     }
     player(id){return this.players.find(p=>p.id===id);}
     setProfile(id,profile){const p=this.player(id);if(!p)return;p.profile=cleanProfile(profile,id);this.changed();}
     alive(team){return this.players.filter(p=>p.team===team&&p.hp>0);}
     enemy(team){return this.alive(1-team);}
     changed(message){this.version++;if(message){this.notice=message;this.eventId++;}}
-    evaluateLone(){
-      if(!this.online||this.winner!==null)return;
-      for(const team of [0,1]){
-        const a=this.alive(team),others=this.alive(1-team);
-        if(a.length===1&&others.length>=1&&others.length<=3){
-          const p=a[0];if(!this.eligible.has(p.id)){this.eligible.add(p.id);this.rollDrop(p);}
-        }
-      }
-    }
-    rollDrop(p){
-      if(!this.online||!p||p.hp<=0||this.alive(p.team).length!==1||!this.enemy(p.team).length)return;
-      if(p.stock.homing>0||this.pickups.some(w=>w.owner===p.id))return;
-      if(Math.random()>=.20)return;
-      const sites=[];
-      // Five movements means Chebyshev distance <= 5 on the 8-direction checkerboard.
-      for(let dr=-5;dr<=5;dr++)for(let dc=-5;dc<=5;dc++){
-        const dist=Math.max(Math.abs(dc),Math.abs(dr));
-        if(dist<2||dist>5)continue;
-        const col=p.col+dc,row=p.row+dr;
-        if(within(p.team,col,row)&&!this.players.some(q=>q.hp>0&&q.col===col&&q.row===row))sites.push({col,row});
+    spawnRadio(team){
+      if(this.winner!==null)return;
+      const eligible=this.alive(team).filter(p=>p.stock.airstrike<1&&!this.pickups.some(w=>w.owner===p.id));
+      if(!eligible.length)return;
+      const p=eligible[rnd(0,eligible.length-1)],sites=[];
+      for(let row=0;row<ROWS;row++)for(let col=0;col<COLS;col++){
+        if(!within(team,col,row))continue;
+        if(this.players.some(q=>q.hp>0&&q.col===col&&q.row===row)||this.pickups.some(q=>q.col===col&&q.row===row))continue;
+        sites.push({col,row});
       }
       if(!sites.length)return;
-      const site=sites[rnd(0,sites.length-1)];this.pickups.push({owner:p.id,col:site.col,row:site.row});
-      this.changed('📻 Walkie-talkie appeared!');
+      // Favour practical routes, keeping the radio on the player's side.
+      sites.sort((a,b)=>Math.max(Math.abs(a.col-p.col),Math.abs(a.row-p.row))-Math.max(Math.abs(b.col-p.col),Math.abs(b.row-p.row)));
+      const nearby=sites.slice(0,Math.min(12,sites.length)),site=nearby[rnd(0,nearby.length-1)];
+      this.pickups.push({owner:p.id,team,col:site.col,row:site.row});
+      this.changed(`📻 Radio for ${p.profile.name}! Collect it for a B-2 airstrike.`);
     }
     answer(id,input){
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0||p.stage!=='question')return;
@@ -388,7 +382,7 @@
       p.lastCorrect=correct;p.stage='armed';p.answered++;if(correct){p.correct++;p.streak++;}else{p.streak=0;if(p.ammo==='torpedo')p.ammo='shell';}
       this.changed(`P${id+1} answered ${correct?'correctly':'incorrectly'}.`);
     }
-    canUse(p,key){return !!AMMO[key]&&(key!=='homing'||(this.online&&this.alive(p.team).length===1&&p.stock.homing>0))&&p.streak>=AMMO[key].min&&(p.stock[key]===-1||p.stock[key]>0);}
+    canUse(p,key){return !!AMMO[key]&&(key!=='airstrike'||p.stock.airstrike>0)&&p.streak>=AMMO[key].min&&(p.stock[key]===-1||p.stock[key]>0);}
     act(id,type,value){
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0)return;
       if(type==='move'){
@@ -399,11 +393,11 @@
         if(this.players.some(q=>q.hp>0&&q.id!==id&&q.col===col&&q.row===row))return;
         p.col=col;p.row=row;
         const drop=this.pickups.find(x=>x.owner===p.id&&x.col===col&&x.row===row);
-        if(drop){p.stock.homing=1;p.ammo='homing';this.pickups=this.pickups.filter(x=>x!==drop);this.changed(`P${id+1} collected homing missile!`);}
+        if(drop){p.stock.airstrike=1;p.ammo='airstrike';this.pickups=this.pickups.filter(x=>x!==drop);this.changed(`📻 ${p.profile.name} ready to call an airstrike!`);}
         else this.changed();
         return;
       }
-      if(type==='aim'){if(p.stage!=='armed'||!Number.isFinite(Number(value)))return;p.angle=CLAMP(Number(value),-80,80);}
+      if(type==='aim'){if(p.stage!=='armed'||!Number.isFinite(Number(value)))return;p.angle=((Math.round(Number(value))%360)+360)%360;}
       else if(type==='equip'){if(p.stage!=='armed'||!this.canUse(p,value))return;p.ammo=value;}
       else if(type==='target'){
         if(p.stage!=='armed'||!value||!Number.isInteger(value.col)||!Number.isInteger(value.row)||!within(1-p.team,value.col,value.row))return;
@@ -412,10 +406,13 @@
       else return;
       this.changed();
     }
-    projectile(p,kind,angle,volley,offset=0,targetId=null){
-      const face=p.team===0?1:-1,rad=(angle+offset)*Math.PI/180;
-      const dx=face*Math.cos(rad),dy=-Math.sin(rad),speed=SPEED[kind];
-      this.projectiles.push({id:++this.currentProjectileId,volley,owner:p.id,team:p.team,type:kind,x:p.col+.5+dx*.55,y:p.row+.5+dy*.55,vx:dx*speed,vy:dy*speed,damage:AMMO[kind].damage,age:0,delay:0,homing:kind==='homing'&&targetId!==null,targetId});
+    projectile(p,kind,angle,volley,offset=0,targetId=null,origin=null){
+      // Clockwise compass: 0 up, 90 right, 180 down, 270 left.
+      const rad=(angle+offset)*Math.PI/180,dx=Math.sin(rad),dy=-Math.cos(rad),speed=SPEED[kind];
+      const x=origin?.x??(p.col+.5+dx*.46),y=origin?.y??(p.row+.5+dy*.46);
+      this.projectiles.push({id:++this.currentProjectileId,volley,owner:p.id,team:p.team,type:kind,
+        x,y,ox:x,oy:y,vx:dx*speed,vy:dy*speed,damage:AMMO[kind].damage,
+        age:0,delay:0,homing:kind==='airstrike'&&targetId!==null,targetId});
     }
     closestEnemy(p){
       const enemies=this.enemy(p.team);if(!enemies.length)return null;
@@ -426,40 +423,42 @@
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0||p.stage!=='armed')return;
       const ammo=this.canUse(p,p.ammo)?p.ammo:'shell';
       if(ammo==='repair'){
-        const heal=MAX_HP*(p.lastCorrect?.30:.05),gained=Math.min(heal,MAX_HP-p.hp);
-        p.hp=Math.min(MAX_HP,p.hp+heal);p.repairs++;
-        this.effects.push({type:'repair',x:p.col+.5,y:p.row+.5,age:0,life:.85});
-        p.stage='question';p.question=makeQuestion();p.lastCorrect=null;this.changed(`P${id+1} repaired ${Number(gained.toFixed(1))} HP!`);return;
+        const gained=Math.min(35,MAX_HP-p.hp);
+        p.hp=Math.min(MAX_HP,p.hp+35);p.repairs++;
+        this.effects.push({type:'repair',x:p.col+.5,y:p.row+.5,age:0,life:2.2});
+        p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
+        this.changed(`${p.profile.name} repaired ${gained} HP!`);
+        return;
       }
-      const angle=p.lastCorrect?p.angle:rnd(-80,80);
+      const angle=p.lastCorrect?p.angle:rnd(0,359);
       if(p.stock[ammo]>0)p.stock[ammo]--;
-      const volley=++this.volleyId;this.volleyOwners[volley]=id;p.lastVolley=volley;
-      // The opposing team loses the previous free-move window when this next shot is fired.
+      const volley=++this.volleyId;this.volleyOwners[volley]={owner:id,hit:false};p.lastVolley=volley;
       for(const enemy of this.enemy(p.team))enemy.defenseOpen=false;
-      if(ammo==='flak')[-14,-7,0,7,14].forEach(d=>this.projectile(p,'flak',angle,volley,d));
-      else if(ammo==='homing'){
-        // Wrong answers retain random-angle shooting: no target lock on a wrong answer.
-        const targetId=p.lastCorrect?this.closestEnemy(p)?.id:null;
-        this.projectile(p,'homing',angle,volley,0,targetId??null);
-        // Roll again only when a one-use homing missile is actually fired.
-        this.rollDrop(p);
+      if(ammo==='flak')[-15,0,15].forEach(d=>this.projectile(p,'flak',angle,volley,d));
+      else if(ammo==='airstrike'){
+        const target=p.lastCorrect?this.closestEnemy(p):null;
+        const aimCol=target?.col??rnd(p.team===0?SPLIT:0,p.team===0?COLS-1:SPLIT-1);
+        const aimRow=target?.row??rnd(0,ROWS-1);
+        this.airstrikes.push({owner:id,team:p.team,volley,targetId:target?.id??null,
+          aimCol,aimRow,age:0,dropped:false});
       }else this.projectile(p,ammo,angle,volley);
       p.shots++;p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
       if(!this.canUse(p,p.ammo))p.ammo='shell';
-      this.changed(`P${id+1} fired ${AMMO[ammo].name}!`);
+      this.changed(`${p.profile.name} fired ${AMMO[ammo].name}!`);
     }
     impact(b,target){
       const inflicted=Math.min(target.hp,b.damage);target.hp=Math.max(0,target.hp-b.damage);this.player(b.owner).hits++;
+      if(this.volleyOwners[b.volley])this.volleyOwners[b.volley].hit=true;
       this.effects.push({type:'boom',x:b.x,y:b.y,age:0,life:.65,size:.7});
-      if(target.hp===0){target.stage='sunk';target.defenseOpen=false;this.pickups=this.pickups.filter(x=>x.owner!==target.id);
-        if(!this.alive(target.team).length&&this.winner===null){this.winner=1-target.team;this.projectiles=[];this.changed(`${this.winner===0?'Azure':'Crimson'} team wins!`);}
-        else {this.changed(`P${target.id+1} sunk!`);this.evaluateLone();}
+      if(target.hp===0){target.stage='sunk';target.sinkAge=0;target.defenseOpen=false;this.pickups=this.pickups.filter(x=>x.owner!==target.id);
+        if(!this.alive(target.team).length&&this.winner===null){this.winner=1-target.team;this.projectiles=[];this.airstrikes=[];this.changed(`${this.winner===0?'Azure':'Crimson'} team wins!`);}
+        else this.changed(`${target.profile.name} destroyed!`);
       }else this.changed(`Direct hit! P${target.id+1} takes ${inflicted} damage.`);
     }
     disconnect(id){const p=this.player(id);if(!p||p.hp<=0||this.winner!==null)return;
-      p.hp=0;p.stage='sunk';p.defenseOpen=false;this.pickups=this.pickups.filter(x=>x.owner!==id);
+      p.hp=0;p.stage='sunk';p.sinkAge=0;p.defenseOpen=false;this.pickups=this.pickups.filter(x=>x.owner!==id);
       if(!this.alive(p.team).length)this.winner=1-p.team;
-      this.changed(`P${id+1} disconnected`);this.evaluateLone();
+      this.changed(`P${id+1} disconnected`);
     }
     tick(dt){
       dt=CLAMP(dt,0,.05);this.effects=this.effects.filter(e=>(e.age+=dt)<e.life);
@@ -497,7 +496,7 @@
         delete this.volleyOwners[volley];
       }
     }
-    publicState(){return {online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,hp:p.hp,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    publicState(){return {online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',soundOn=false,audioCtx=null,lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null;
