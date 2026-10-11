@@ -5,8 +5,8 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <meta content="#071425" name="theme-color"/>
-<meta content="STEM Battleship: one question unlocks one attack in a fast-paced educational naval duel." name="description"/>
-<title>STEM Battleship • Fleet Battle</title>
+<meta content="STEAM Battleship by MrDhameri: one question unlocks one attack in a fast-paced educational naval duel." name="description"/>
+<title>STEAM BATTLESHIP by MrDhameri</title>
 <style>
 
 :root{color-scheme:dark;--bg:#06101c;--surface:#0b1a2a;--raised:#10273c;--line:#214157;--muted:#8ba3b6;--light:#e7f2fa;--teal:#49ded6;--yellow:#f6cc73;--red:#f58a83;--blue:#68b9ff;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -138,12 +138,26 @@
 .workshop-tip{margin-bottom:0;margin-top:16px}
 @media(max-width:850px){.workshop-grid{grid-template-columns:1fr}.lobby{padding:18px 12px 35px}.workshop-preview-pane,.workshop-editor{padding:15px}.workshop-play{margin-top:14px}.workshop-play .mode-card{min-height:63px}.paint-grid{grid-template-columns:1fr 1fr}.paint-part{font-size:11px}}
 @media(max-width:420px){.paint-grid{grid-template-columns:1fr}.workshop-play .mode-title{font-size:10px}.workshop-play .mode-icon{font-size:20px}}
+
+/* STEAM • circular cannon compass, not a linear slider */
+.brand-by{display:block;color:#96bdc6;font-size:9px;letter-spacing:.7px;font-weight:700;margin-top:3px}
+.bearing-row{display:flex;gap:21px;align-items:center;justify-content:center;padding:3px 0 8px}
+.bearing-dial{--bearing:90deg;width:134px;height:134px;border:3px solid #417488;border-radius:50%;position:relative;flex:none;cursor:grab;touch-action:none;user-select:none;outline:0;background:radial-gradient(circle at 47% 42%,#28617a,#0b273d 73%);box-shadow:inset 0 0 0 5px #0c1d30,0 3px 18px #0005}
+.bearing-dial:focus-visible{outline:2px solid var(--teal);outline-offset:4px}
+.bearing-dial:active{cursor:grabbing}
+.bearing-pointer{position:absolute;inset:0;transform:rotate(var(--bearing));pointer-events:none}
+.bearing-pointer:before{content:'';position:absolute;left:50%;top:9px;transform:translateX(-50%);width:5px;height:47px;background:linear-gradient(#fdd47a,#58f2e2);clip-path:polygon(50% 0%,100% 22%,100% 100%,0 100%,0 22%)}
+.bearing-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:37px;height:37px;background:#0b2334;border:2px solid #61c5cc;border-radius:50%;display:grid;place-items:center;color:#d1faff;font-size:16px}
+.bearing-dial span{position:absolute;color:#cae5ef;font-size:9px;font-weight:900;pointer-events:none}
+.bearing-n{top:-1px;left:50%;transform:translateX(-50%)}.bearing-e{top:50%;right:3px;transform:translateY(-50%)}.bearing-s{bottom:1px;left:50%;transform:translateX(-50%)}.bearing-w{top:50%;left:3px;transform:translateY(-50%)}
+.bearing-readout{display:flex;flex-direction:column;gap:8px;min-width:84px}.bearing-readout strong{font-size:28px;font-variant-numeric:tabular-nums;color:#67f1d8}.bearing-readout span{font-size:9px;font-weight:800;letter-spacing:1px;color:#97b8cb}
+@media(max-width:420px){.bearing-dial{width:112px;height:112px}.bearing-pointer:before{height:35px}.bearing-readout strong{font-size:23px}}
 </style>
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
-<div class="brand"><div class="brand-mark">⚓</div><div><div class="brand-title">STEM <span>BATTLESHIP</span></div></div></div>
+<div class="brand"><div class="brand-mark">⚓</div><div><div class="brand-title">STEAM <span>BATTLESHIP</span><small class="brand-by">by MrDhameri</small></div></div></div>
 <div class="top-actions"><button aria-label="How to play" class="icon-btn" id="help-btn" title="How to play" type="button">?</button><span class="online-indicator" id="connection-label">READY</span><button aria-label="Toggle sound" class="icon-btn" id="sound-btn" title="Toggle sound" type="button">♪</button><button aria-label="Leave match" class="icon-btn hidden" id="menu-btn" title="Leave match" type="button">←</button></div>
 </header>
 <main>
@@ -199,7 +213,7 @@
 
 </div>
 <div aria-labelledby="winner-heading" aria-modal="true" class="end-overlay hidden" id="end-overlay" role="dialog"><div class="end-card"><div class="eyebrow">MATCH COMPLETE</div><div class="end-symbol">⚓</div><h2 id="winner-heading">VICTORY</h2><p id="end-reason"></p><div class="end-stats" id="end-stats"></div><button class="primary-btn" id="rematch-btn">PLAY AGAIN</button><button class="back-link" id="end-menu-btn">MENU</button></div></div>
-<div aria-label="How to play" aria-modal="true" class="help-overlay hidden" id="help-overlay" role="dialog"><div class="help-card"><div class="help-heading"><strong>HOW TO PLAY</strong><button aria-label="Close help" class="icon-btn" id="close-help" type="button">✕</button></div><div class="help-step"><b>1</b><span>ANSWER a question.</span></div><div class="help-step"><b>2</b><span>TAP an adjacent square · AIM · EQUIP.</span></div><div class="help-step"><b>3</b><span>FIRE or REPAIR. Either ends the attack cycle.</span></div><p>After an incoming shot resolves, defensive tile movement is free until the opponent fires again.</p><p>Wrong answers cause random shots. Repair restores 5% instead of 30%. Torpedo requires 3 correct answers in a row.</p><p>Online: up to 3v3. A lone survivor may discover a walkie-talkie within five tile moves. Collect it for a one-use homing missile (40% damage). Tap an enemy to target it.</p></div></div><script src="rbt-questions.js"></script>
+<div aria-label="How to play" aria-modal="true" class="help-overlay hidden" id="help-overlay" role="dialog"><div class="help-card"><div class="help-heading"><strong>HOW TO PLAY</strong><button aria-label="Close help" class="icon-btn" id="close-help" type="button">✕</button></div><div class="help-step"><b>1</b><span>ANSWER a question.</span></div><div class="help-step"><b>2</b><span>TAP an adjacent square · AIM · EQUIP.</span></div><div class="help-step"><b>3</b><span>FIRE or REPAIR. Either ends the attack cycle.</span></div><p>After an incoming shot resolves, defensive tile movement is free until the opponent fires again.</p><p>Wrong answers cause random shots. Wrong answers send shots in random directions. Repair restores 35 HP. Torpedo requires three consecutive correct answers.</p><p>Online: up to 3v3. When the other team misses five consecutive volleys, a radio appears on your side. Collect it to call a B-2 airstrike (35 damage). Tap an enemy to select a target.</p></div></div><script src="rbt-questions.js"></script>
 <script>
 
 /* STEM BATTLESHIP — 2-player local + peer-to-peer online classroom prototype.
@@ -621,35 +635,56 @@
   }
   function getGameState(){return mode==='guest'?remoteState:engine?.publicState()||null;}
   function weaponButton(p,key){
-    const w=AMMO[key], unlocked=key==='homing'?(p.stock.homing>0):p.streak>=w.min, stock=p.stock[key];
-    const available=unlocked && (stock===-1||stock>0);
-    const suffix=!unlocked?(key==='homing'?'📻':`🔒 ${p.streak}/${w.min}`):key==='repair'?(p.lastCorrect?'30% HP':'5% HP'):stock===-1?'∞':`×${stock}`;
-    const title=`${w.name} — ${w.hint}${unlocked?'':key==='homing'?' — collect walkie-talkie as lone ship':` — requires ${w.min} correct answers in a row`}`;
+    const w=AMMO[key],unlocked=key==='airstrike'?p.stock.airstrike>0:p.streak>=w.min,stock=p.stock[key];
+    const available=unlocked&&(stock===-1||stock>0);
+    const suffix=!unlocked?(key==='airstrike'?'📻':`🔒 ${p.streak}/${w.min}`):key==='repair'?'+35 HP':stock===-1?'∞':`×${stock}`;
+    const title=`${w.name} — ${w.hint}${unlocked?'':key==='airstrike'?' — collect radio after 5 opposing misses':` — ${w.min} correct answers in a row`}`;
     return `<button type="button" class="weapon-btn ${p.ammo===key?'selected':''}" title="${esc(title)}" aria-label="${esc(title)}" data-action="equip" data-value="${key}" ${available?'':'disabled'} aria-pressed="${p.ammo===key}"><span class="weapon-title">${esc(w.short)}</span><span class="weapon-desc">${suffix}</span></button>`;
+  }
+  function knobHTML(angle){
+    return `<div class="bearing-row"><div class="bearing-dial" data-bearing-knob role="slider" tabindex="0" aria-label="Cannon bearing" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${angle}" aria-valuetext="${angle} degrees" style="--bearing:${angle}deg"><i class="bearing-pointer"></i><b class="bearing-center">⚓</b><span class="bearing-n">0</span><span class="bearing-e">90</span><span class="bearing-s">180</span><span class="bearing-w">270</span></div><div class="bearing-readout"><strong data-angle-value>${angle}°</strong><span>DRAG TO TURN</span></div></div>`;
   }
   function panelHTML(p){
     const ready=p.stage==='armed',sunk=p.hp<=0;
     const state=sunk?'● SUNK':ready?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';
     const head=`<div class="console-top"><div class="console-name"><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
     let body;
-    if(sunk){body='<div class="console-body">SUNK</div>';}
+    if(sunk)body='<div class="console-body">SUNK</div>';
     else if(!ready){
       const answer=p.question.kind==='number'
-        ? `<form class="quiz-form" data-quiz><input type="text" inputmode="decimal" aria-label="STEM answer" placeholder="Answer" autocomplete="off" required><button class="primary-btn" type="submit" aria-label="Submit answer">GO ↗</button></form>`
+        ? `<form class="quiz-form" data-quiz><input type="text" inputmode="decimal" aria-label="STEAM answer" placeholder="Answer" autocomplete="off" required><button class="primary-btn" type="submit" aria-label="Submit answer">GO ↗</button></form>`
         : `<div class="quiz-options">${p.question.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
       body=`<div class="console-body"><div class="question-text">${esc(p.question.text)}</div>${answer}</div>`;
     }else{
-      body=`<div class="console-body"><div class="control-box" ${p.ammo==='repair'?'style="display:none"':''}><div class="box-label">AIM</div><div class="slider-row"><input class="angle-slider" type="range" min="-80" max="80" value="${p.angle}" step="1" data-angle aria-label="Cannon bearing"><span class="readout" data-angle-value>${Math.round(p.angle)}°</span></div></div><div class="control-box" style="margin-top:9px"><div class="box-label">AMMO</div><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='homing'||p.stock.homing>0).map(key=>weaponButton(p,key)).join('')}</div></div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':'FIRE ➤'}</button></div>`;
+      body=`<div class="console-body"><div class="control-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="display:none"':''}><div class="box-label">BEARING</div>${knobHTML(p.angle)}</div><div class="control-box" style="margin-top:9px"><div class="box-label">AMMO</div><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div></div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'CALL AIRSTRIKE ✈':'FIRE ➤'}</button></div>`;
     }
     return head+body;
   }
-  function renderPanels(s){if(!s)return;const ids=mode==='local'?[0,1]:[myId];
+  function renderPanels(s){
+    if(!s)return;
+    const ids=mode==='local'?[0,1]:[myId];
     for(const child of [...controls.children])if(!ids.includes(Number(child.dataset.player)))child.remove();
-    ids.forEach(id=>{const p=s.players.find(x=>x.id===id);if(!p)return;const key=`${p.stage}-${p.question.id}-${p.defenseOpen}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.homing}-${p.profile?.name}`, old=controls.querySelector(`[data-player="${id}"]`);let el=old;
+    ids.forEach(id=>{
+      const p=s.players.find(x=>x.id===id);if(!p)return;
+      // Opponent attacks, mobility changes and network updates must never erase a typed answer.
+      const key=`${p.stage}-${p.question.id}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.airstrike}-${p.profile?.name}`;
+      let el=controls.querySelector(`[data-player="${id}"]`);
       if(!el){el=document.createElement('section');el.className=`control-panel p${id}`;el.dataset.player=id;controls.appendChild(el);}
-      if(el.dataset.renderKey!==key){el.innerHTML=panelHTML(p);el.dataset.renderKey=key;}
+      if(el.dataset.renderKey!==key){
+        const draft=el.querySelector('[data-quiz] input');
+        const previousQuestion=el.dataset.questionId;
+        const answerText=draft?.value,wasFocused=draft&&document.activeElement===draft;
+        el.innerHTML=panelHTML(p);el.dataset.renderKey=key;el.dataset.questionId=String(p.question.id);
+        if(p.stage==='question'&&previousQuestion===String(p.question.id)&&answerText!==undefined){
+          const replacement=el.querySelector('[data-quiz] input');
+          if(replacement){replacement.value=answerText;if(wasFocused)replacement.focus({preventScroll:true});}
+        }
+      }
+      const stateEl=el.querySelector('.console-state');
+      if(stateEl){stateEl.textContent=p.hp<=0?'● SUNK':p.stage==='armed'?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';stateEl.classList.toggle('defense-on',p.defenseOpen);}
       const angle=el.querySelector('[data-angle-value]');if(angle)angle.textContent=`${Math.round(p.angle)}°`;
-      const input=el.querySelector('[data-angle]');if(input&&document.activeElement!==input)input.value=p.angle;
+      const knob=el.querySelector('[data-bearing-knob]');
+      if(knob&&!knob.matches(':active')){knob.style.setProperty('--bearing',`${p.angle}deg`);knob.setAttribute('aria-valuenow',String(p.angle));knob.setAttribute('aria-valuetext',`${p.angle} degrees`);}
       el.querySelectorAll('[data-action="equip"]').forEach(btn=>{btn.classList.toggle('selected',btn.dataset.value===p.ammo);btn.setAttribute('aria-pressed',String(btn.dataset.value===p.ammo));});
       const fire=el.querySelector('[data-action="fire"]');if(fire)fire.setAttribute('title',p.ammo==='repair'?'Repair your ship (uses this attack cycle)':`Fire ${AMMO[p.ammo].name}`);
     });
@@ -685,7 +720,37 @@
     if(action==='choice'){const s=getGameState(),q=s?.players[id]?.question;if(q?.kind==='choice')doAction(id,'answer',q.options[Number(btn.dataset.value)]);}
     else doAction(id,action,btn.dataset.value);
   });
-  controls.addEventListener('input',e=>{if(!e.target.matches('[data-angle]'))return;const id=Number(e.target.closest('[data-player]').dataset.player),v=Number(e.target.value);e.target.closest('.control-box').querySelector('[data-angle-value]').textContent=`${v}°`;doAction(id,'aim',v);});
+  // A full-circle bearing knob: north 0°, east 90°, south 180°, west 270°.
+  // Delegate pointer handling so changing ammo/panels does not lose controls.
+  let draggingKnob=null;
+  function setKnobBearing(knob,angle){
+    const v=((Math.round(angle)%360)+360)%360;
+    knob.style.setProperty('--bearing',`${v}deg`);
+    knob.setAttribute('aria-valuenow',String(v));
+    knob.setAttribute('aria-valuetext',`${v} degrees`);
+    const readout=knob.closest('.control-box')?.querySelector('[data-angle-value]');
+    if(readout)readout.textContent=`${v}°`;
+    const panel=knob.closest('[data-player]');if(panel)doAction(Number(panel.dataset.player),'aim',v);
+  }
+  function angleAtPointer(knob,event){
+    const r=knob.getBoundingClientRect(),x=event.clientX-(r.left+r.width/2),y=event.clientY-(r.top+r.height/2);
+    return (Math.atan2(x,-y)*180/Math.PI+360)%360;
+  }
+  controls.addEventListener('pointerdown',e=>{
+    const knob=e.target.closest('[data-bearing-knob]');if(!knob)return;
+    draggingKnob=knob;knob.setPointerCapture?.(e.pointerId);e.preventDefault();
+    setKnobBearing(knob,angleAtPointer(knob,e));
+  });
+  controls.addEventListener('pointermove',e=>{if(!draggingKnob)return;setKnobBearing(draggingKnob,angleAtPointer(draggingKnob,e));});
+  controls.addEventListener('pointerup',()=>draggingKnob=null);
+  controls.addEventListener('pointercancel',()=>draggingKnob=null);
+  controls.addEventListener('keydown',e=>{
+    const knob=e.target.closest('[data-bearing-knob]');if(!knob)return;
+    if(!['ArrowRight','ArrowUp','ArrowLeft','ArrowDown','Home'].includes(e.key))return;
+    e.preventDefault();
+    const angle=Number(knob.getAttribute('aria-valuenow'))||0;
+    setKnobBearing(knob,e.key==='Home'?0:angle+(e.key==='ArrowRight'||e.key==='ArrowUp'?5:-5));
+  });
 
   // Unskewed top-down tactical checkerboard; world coordinates are whole tiles.
   const gradient=(x1,y1,x2,y2,stops)=>{const g=ctx.createLinearGradient(x1,y1,x2,y2);stops.forEach(([p,c])=>g.addColorStop(p,c));return g;};
@@ -852,7 +917,7 @@
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'1.8-ship-workshop',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'1.9-steam-airstrike',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
