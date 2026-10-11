@@ -103,6 +103,41 @@
 .ship-knocked{opacity:.52}.ship-hp b{font-weight:900}
 .battle .weapon-grid:has(.weapon-btn:nth-child(5)){grid-template-columns:repeat(5,minmax(0,1fr))}
 @media(max-width:680px){.scoreboard{grid-template-columns:1fr 20px 1fr}.ship-hp{font-size:9px}.ship-hp .hp-small{width:25px}.fleet{gap:4px}.battle .weapon-grid:has(.weapon-btn:nth-child(5)) .weapon-btn .weapon-title{font-size:8px}}
+
+/* 1.8 • Ship Workshop home */
+.lobby{display:block;max-width:1230px;margin:auto;padding:28px 20px 45px;text-align:left}
+.workshop-heading{margin:0 0 18px}.workshop-kicker{font-size:10px;font-weight:900;color:#6de0d3;letter-spacing:2.4px}
+.workshop-heading h1{font-size:clamp(31px,5vw,52px);line-height:1;margin:9px 0;color:#e8f7fc;letter-spacing:-1.1px}.workshop-heading h1 span{color:var(--teal)}
+.workshop-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.8fr);gap:16px;align-items:start}
+.workshop-preview-pane,.workshop-editor{background:linear-gradient(145deg,#12364f,#091a2a);border:1px solid #335e70;border-radius:17px;padding:19px;box-shadow:0 14px 40px #0003;min-width:0}
+.workshop-pane-head,.workshop-editor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#a2c9d6;font-size:11px;font-weight:900;letter-spacing:1px}
+.workshop-pane-head #bay-id{color:#65e3d0;padding:6px 10px;border:1px solid #397c82;border-radius:30px}
+#ship-preview{width:100%;height:auto;aspect-ratio:2/1;display:block;background:#0b2b42;border:1px solid #36596b;border-radius:12px;margin:14px 0}
+.preview-name{text-align:center;letter-spacing:2px;font-weight:900;color:#d6f7fc;font-size:15px;overflow-wrap:anywhere}
+.workshop-play{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:24px}
+.workshop-play .mode-card{min-height:72px;padding:12px 8px;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:11px;background:#103246;border-radius:10px}
+.workshop-play .mode-icon{font-size:25px}.workshop-play .mode-title{font-size:12px;letter-spacing:.8px}
+.workshop-editor-head strong{color:#e5f6ff;font-size:16px}
+.captain-tabs{display:flex;gap:2px;padding:3px;background:#071c2b;border:1px solid #31596d;border-radius:9px}
+.captain-tabs button{background:transparent;border:0;border-radius:6px;padding:8px 13px;color:#91bdcf;font-size:11px;font-weight:900}
+.captain-tabs button.active{background:#43d8c8;color:#062531}
+.name-heading{display:flex;justify-content:space-between;gap:10px;margin:20px 0 8px;font-size:11px;font-weight:900;letter-spacing:1px;color:#b8d5e1}
+.name-heading span{color:#75e2d5}
+#ship-name{display:block;width:100%;background:#061928;color:#eaffff;border:1px solid #497486;border-radius:9px;font-size:18px;font-weight:900;padding:13px;outline:none}
+#ship-name:focus{border-color:#62e6da;box-shadow:0 0 0 2px #51dbc536}
+.workshop-caption{font-size:10px;color:#94b0bf;line-height:1.5;margin-top:8px}
+.paint-title{display:flex;justify-content:space-between;align-items:center;margin:19px 0 10px;font-size:11px;letter-spacing:1px;color:#c1dbe4}
+.paint-title button{border:0;background:transparent;color:#73e9d9;font-size:10px;font-weight:900}
+.paint-grid{display:grid;gap:7px}
+.paint-part{display:flex;align-items:center;justify-content:space-between;min-height:45px;gap:9px;border:1px solid #315668;background:#0b2a3d;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:900;color:#e5f4fb}
+.paint-part input{width:54px;height:33px;padding:2px;background:#092338;border:1px solid #6b91a2;border-radius:7px;cursor:pointer}
+.paint-preset-title{margin:18px 0 8px;font-size:10px;font-weight:900;letter-spacing:1px;color:#a8c5d0}
+.paint-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.paint-presets button{min-width:0;border:1px solid #416a7c;background:#14394b;border-radius:7px;padding:10px 3px;color:#d6eff6;font-size:10px;font-weight:900}
+.paint-presets button:hover{border-color:#61dcca}
+.workshop-tip{margin-bottom:0;margin-top:16px}
+@media(max-width:850px){.workshop-grid{grid-template-columns:1fr}.lobby{padding:18px 12px 35px}.workshop-preview-pane,.workshop-editor{padding:15px}.workshop-play{margin-top:14px}.workshop-play .mode-card{min-height:63px}.paint-grid{grid-template-columns:1fr 1fr}.paint-part{font-size:11px}}
+@media(max-width:420px){.paint-grid{grid-template-columns:1fr}.workshop-play .mode-title{font-size:10px}.workshop-play .mode-icon{font-size:20px}}
 </style>
 </head>
 <body>
@@ -113,18 +148,37 @@
 </header>
 <main>
 <section class="lobby" id="lobby">
-<div class="hero">
-
-<h1>STEM <span>BATTLESHIP</span></h1>
-<p>ANSWER  ·  AIM  ·  FIRE</p>
-<div class="mode-grid">
-<button aria-label="Start same-device two-player game" class="mode-card" id="local-btn" type="button"><span class="mode-icon">▣ ▣</span><span class="mode-title">SAME DEVICE</span></button>
-<button aria-label="Set up online two- to six-player game" class="mode-card" id="online-btn" type="button"><span class="mode-icon">◎ ━ ◎</span><span class="mode-title">ONLINE</span></button>
-</div>
-
-</div>
-
-</section>
+<div class="workshop-heading"><div class="workshop-kicker">YOUR FLEET • YOUR DESIGN</div><h1>SHIP <span>WORKSHOP</span></h1></div>
+<div class="workshop-grid">
+  <div class="workshop-preview-pane"><div class="workshop-pane-head"><span>VESSEL PREVIEW</span><span id="bay-id">CAPTAIN 1</span></div>
+    <canvas id="ship-preview" width="720" height="360" aria-label="Live preview of your ship design"></canvas>
+    <div class="preview-name" id="preview-ship-name">P1 VANGUARD</div>
+    <div class="workshop-play">
+      <button class="mode-card" id="local-btn" type="button"><span class="mode-icon">▣</span><span class="mode-title">SAME DEVICE</span></button>
+      <button class="mode-card" id="online-btn" type="button"><span class="mode-icon">◎</span><span class="mode-title">ONLINE</span></button>
+    </div>
+  </div>
+  <div class="workshop-editor">
+    <div class="workshop-editor-head"><strong>CUSTOMISE</strong><div class="captain-tabs"><button type="button" id="captain-one" class="active">P1</button><button type="button" id="captain-two">P2</button></div></div>
+    <label for="ship-name" class="name-heading">SHIP NAME <span id="name-count">0/15</span></label>
+    <input id="ship-name" type="text" maxlength="15" autocomplete="off" spellcheck="false" aria-describedby="name-note" placeholder="Name your ship"/>
+    <div id="name-note" class="workshop-caption">15 characters max · Letters, numbers, spaces, . - _ ! &amp; @</div>
+    <div class="paint-title"><strong>SHIP PARTS</strong><button id="reset-paint" type="button">RESET</button></div>
+    <div class="paint-grid">
+      <label class="paint-part">HULL / BODY <input type="color" id="paint-body" aria-label="Hull colour"/></label>
+      <label class="paint-part">CANNON <input type="color" id="paint-cannon" aria-label="Cannon colour"/></label>
+      <label class="paint-part">BARREL <input type="color" id="paint-barrel" aria-label="Barrel colour"/></label>
+      <label class="paint-part">LININGS <input type="color" id="paint-lining" aria-label="Lining colour"/></label>
+      <label class="paint-part">FLAG <input type="color" id="paint-flag" aria-label="Flag colour"/></label>
+    </div>
+    <div class="paint-preset-title">COLOUR THEMES</div>
+    <div class="paint-presets">
+      <button type="button" data-preset="ocean">OCEAN</button><button type="button" data-preset="ember">EMBER</button>
+      <button type="button" data-preset="forest">FOREST</button><button type="button" data-preset="shadow">SHADOW</button>
+    </div>
+    <p class="workshop-caption workshop-tip">P1 and P2 designs are used in same-device games. Online, each player brings their own design.</p>
+  </div>
+</div></section>
 <section class="setup hidden" id="online-setup">
 <button class="back-link" id="setup-back" type="button">← BACK</button>
 <div class="setup-card"><h2>ONLINE MATCH</h2>
@@ -165,6 +219,62 @@
   const CLAMP=(n,a,b)=>Math.max(a,Math.min(b,n));
   const rnd=(lo,hi)=>Math.floor(Math.random()*(hi-lo+1))+lo;
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const PAINT_KEYS=['body','cannon','barrel','lining','flag'];
+  const THEMES={
+    ocean:{body:'#368db8',cannon:'#4f9eb8',barrel:'#d7f7ff',lining:'#9adfea',flag:'#ffd166'},
+    ember:{body:'#b95972',cannon:'#dc857a',barrel:'#ffe1d1',lining:'#ffc4ae',flag:'#ffe27d'},
+    forest:{body:'#3c836e',cannon:'#5eae8b',barrel:'#d0efce',lining:'#96d9ac',flag:'#ffd37b'},
+    shadow:{body:'#50566e',cannon:'#7a85a3',barrel:'#ccdef4',lining:'#a3b2c9',flag:'#ff888a'}
+  };
+  function defaultProfile(id){return {name:`P${id+1} VANGUARD`,colors:{...(id%2===0?THEMES.ocean:THEMES.ember)}};}
+  function cleanName(name){return String(name??'').replace(/[^A-Za-z0-9 ._!&@-]/g,'').slice(0,15);}
+  function cleanProfile(raw,id){const fallback=defaultProfile(id);return {name:cleanName(raw?.name).trim()||fallback.name,colors:Object.fromEntries(PAINT_KEYS.map(k=>[k,/^#[0-9a-f]{6}$/i.test(raw?.colors?.[k]||'')?raw.colors[k]:fallback.colors[k]]))};}
+  function loadProfiles(){try{const data=JSON.parse(localStorage.getItem('stem-ship-workshop-v1'));if(Array.isArray(data))return [cleanProfile(data[0],0),cleanProfile(data[1],1)];}catch(_e){}return [defaultProfile(0),defaultProfile(1)];}
+  let savedProfiles=loadProfiles(),workshopSlot=0,roomProfiles={};
+  function persistProfiles(){try{localStorage.setItem('stem-ship-workshop-v1',JSON.stringify(savedProfiles));}catch(_e){}}
+  function darken(hex,mult){const n=parseInt(hex.slice(1),16);return '#'+[16,8,0].map(shift=>Math.round(((n>>shift)&255)*mult).toString(16).padStart(2,'0')).join('');}
+  function paintPreview(){
+    const can=$('ship-preview'),pen=can.getContext('2d'),p=savedProfiles[workshopSlot],cl=p.colors;
+    if(!pen)return;
+    const bg=pen.createLinearGradient(0,0,720,360);bg.addColorStop(0,'#123b55');bg.addColorStop(1,'#071b2c');pen.fillStyle=bg;pen.fillRect(0,0,720,360);
+    pen.lineWidth=1;pen.strokeStyle='#9ad8e61c';for(let x=0;x<720;x+=45){pen.beginPath();pen.moveTo(x,0);pen.lineTo(x,360);pen.stroke();}for(let y=0;y<360;y+=45){pen.beginPath();pen.moveTo(0,y);pen.lineTo(720,y);pen.stroke();}
+    pen.save();pen.translate(355,204);pen.scale(3.5,3.5);
+    const shape=(points,fill,stroke)=>{pen.beginPath();pen.moveTo(...points[0]);for(const xy of points.slice(1))pen.lineTo(...xy);pen.closePath();pen.fillStyle=fill;pen.fill();if(stroke){pen.lineWidth=1.2;pen.strokeStyle=stroke;pen.stroke();}};
+    const oval=(x,y,rx,ry,col)=>{pen.beginPath();pen.ellipse(x,y,rx,ry,0,0,2*Math.PI);pen.fillStyle=col;pen.fill();};
+    oval(0,31,49,12,'#00132199');
+    shape([[-44,8],[36,8],[44,3],[39,19],[28,26],[-30,26],[-41,19]],darken(cl.body,.45),cl.lining);
+    shape([[-38,10],[35,10],[39,8],[34,19],[24,23],[-27,23],[-37,18]],cl.body);
+    pen.fillStyle=cl.lining;pen.globalAlpha=.6;pen.fillRect(-35,11,68,2);pen.globalAlpha=1;
+    for(const x of [-28,-15,-2,11,24])oval(x,18,2,2,cl.lining);
+    shape([[-26,7],[-25,-7],[-14,-7],[-13,7]],darken(cl.cannon,.6),cl.lining);
+    shape([[-13,6],[-13,-13],[5,-13],[13,-6],[13,6]],cl.lining,darken(cl.cannon,.6));
+    shape([[-10,-10],[2,-10],[8,-5],[-10,-5]],darken(cl.body,.5));
+    pen.strokeStyle=cl.lining;pen.lineWidth=1.7;pen.beginPath();pen.moveTo(-4,-14);pen.lineTo(-4,-27);pen.stroke();
+    shape([[-4,-26],[12,-22],[-4,-19]],cl.flag,cl.lining);
+    pen.lineCap='round';pen.strokeStyle=darken(cl.barrel,.38);pen.lineWidth=8;pen.beginPath();pen.moveTo(23,1);pen.lineTo(50,1);pen.stroke();
+    pen.strokeStyle=cl.barrel;pen.lineWidth=4;pen.beginPath();pen.moveTo(23,0);pen.lineTo(50,0);pen.stroke();
+    shape([[12,7],[14,-2],[19,-7],[26,-7],[32,-2],[34,7]],cl.cannon,cl.lining);
+    pen.restore();
+    pen.font='900 20px system-ui';pen.fillStyle='#e4faff';pen.textAlign='center';pen.fillText(p.name||defaultProfile(workshopSlot).name,360,319,690);
+    $('preview-ship-name').textContent=p.name||defaultProfile(workshopSlot).name;
+  }
+  function refreshWorkshop(){
+    const p=savedProfiles[workshopSlot];$('ship-name').value=p.name;$('name-count').textContent=`${p.name.length}/15`;
+    for(let n=0;n<2;n++){$('captain-'+(n===0?'one':'two')).classList.toggle('active',workshopSlot===n);$('captain-'+(n===0?'one':'two')).setAttribute('aria-pressed',String(workshopSlot===n));}
+    $('bay-id').textContent=`CAPTAIN ${workshopSlot+1}`;for(const part of PAINT_KEYS)$('paint-'+part).value=p.colors[part];paintPreview();
+  }
+  function attachWorkshop(){
+    $('captain-one').addEventListener('click',()=>{workshopSlot=0;refreshWorkshop();});
+    $('captain-two').addEventListener('click',()=>{workshopSlot=1;refreshWorkshop();});
+    $('ship-name').addEventListener('input',e=>{const v=cleanName(e.target.value);if(e.target.value!==v)e.target.value=v;savedProfiles[workshopSlot].name=v;$('name-count').textContent=`${v.length}/15`;persistProfiles();paintPreview();});
+    $('ship-name').addEventListener('blur',()=>{savedProfiles[workshopSlot]=cleanProfile(savedProfiles[workshopSlot],workshopSlot);persistProfiles();refreshWorkshop();});
+    for(const part of PAINT_KEYS)$('paint-'+part).addEventListener('input',e=>{savedProfiles[workshopSlot].colors[part]=e.target.value;persistProfiles();paintPreview();});
+    document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{savedProfiles[workshopSlot].colors={...THEMES[b.dataset.preset]};persistProfiles();refreshWorkshop();}));
+    $('reset-paint').addEventListener('click',()=>{savedProfiles[workshopSlot].colors={...defaultProfile(workshopSlot).colors};persistProfiles();refreshWorkshop();});
+    refreshWorkshop();
+  }
+
   const AMMO={
     shell:{name:'SHELL',short:'SHELL',damage:25,min:0,stock:Infinity,hint:'25 DMG'},
     flak:{name:'FLAK',short:'FLAK',damage:10,min:0,stock:3,hint:'5 × 10'},
@@ -222,19 +332,20 @@
     }
     return {id:questionCounter,kind:'number',text,answer:String(answer)};
   }
-  function makePlayer(id,team,col,row){return {id,team,col,row,hp:MAX_HP,angle:0,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,homing:0},stage:'question',defenseOpen:false,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile){return {id,team,col,row,profile:cleanProfile(profile,id),hp:MAX_HP,angle:0,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,homing:0},stage:'question',defenseOpen:false,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
-    constructor(ids=[0,1],online=false){
+    constructor(ids=[0,1],online=false,profiles=null){
       this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
       const positions=[0,0];
-      this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row);});
+      this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id]);});
       this.projectiles=[];this.effects=[];this.pickups=[];this.winner=null;this.version=1;this.eventId=1;this.notice='';this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};this.eligible=new Set();this.targetMarker=null;
       this.evaluateLone();
     }
     player(id){return this.players.find(p=>p.id===id);}
+    setProfile(id,profile){const p=this.player(id);if(!p)return;p.profile=cleanProfile(profile,id);this.changed();}
     alive(team){return this.players.filter(p=>p.team===team&&p.hp>0);}
     enemy(team){return this.alive(1-team);}
     changed(message){this.version++;if(message){this.notice=message;this.eventId++;}}
@@ -379,7 +490,7 @@
         delete this.volleyOwners[volley];
       }
     }
-    publicState(){return {online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,col:p.col,row:p.row,hp:p.hp,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    publicState(){return {online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,hp:p.hp,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',soundOn=false,audioCtx=null,lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null;
@@ -392,7 +503,7 @@
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
   function resetToLobby(){destroyPeer();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
-    mode=kind;const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host'):null;
+    mode=kind;const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');$('room-chip').classList.toggle('hidden',kind==='local');$('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'LOCAL':`P${myId+1} · ONLINE`;
@@ -673,9 +784,10 @@
   }
   requestAnimationFrame(frame);
 
-  $('local-btn').addEventListener('click',()=>beginGame('local'));
+  attachWorkshop();
+   $('local-btn').addEventListener('click',()=>{savedProfiles=savedProfiles.map((p,id)=>cleanProfile(p,id));persistProfiles();beginGame('local');});
   $('start-match').addEventListener('click',startOnlineMatch);
-  $('online-btn').addEventListener('click',()=>show('online-setup'));
+  $('online-btn').addEventListener('click',()=>{savedProfiles[0]=cleanProfile(savedProfiles[0],0);persistProfiles();show('online-setup');});
   $('setup-back').addEventListener('click',resetToLobby);
   $('create-room').addEventListener('click',hostRoom);
   $('join-form').addEventListener('submit',e=>{e.preventDefault();const code=$('room-code').value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length!==6){$('room-code').setCustomValidity('Enter a six-character room code.');$('room-code').reportValidity();return;}$('room-code').setCustomValidity('');joinRoom(code);});
