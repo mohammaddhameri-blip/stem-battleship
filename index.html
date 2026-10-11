@@ -230,6 +230,13 @@
   function defaultProfile(id){return {name:`P${id+1} VANGUARD`,colors:{...(id%2===0?THEMES.ocean:THEMES.ember)}};}
   function cleanName(name){return String(name??'').replace(/[^A-Za-z0-9 ._!&@-]/g,'').slice(0,15);}
   function cleanProfile(raw,id){const fallback=defaultProfile(id);return {name:cleanName(raw?.name).trim()||fallback.name,colors:Object.fromEntries(PAINT_KEYS.map(k=>[k,/^#[0-9a-f]{6}$/i.test(raw?.colors?.[k]||'')?raw.colors[k]:fallback.colors[k]]))};}
+  function assignedOnlineProfile(raw,id){
+    const profile=cleanProfile(raw,id);
+    // A fresh visitor starts with the P1 workshop default; remap an untouched
+    // preset to the actual online ship ID and team palette.
+    if(id>0 && profile.name===defaultProfile(0).name && PAINT_KEYS.every(k=>profile.colors[k]===THEMES.ocean[k]))return defaultProfile(id);
+    return profile;
+  }
   function loadProfiles(){try{const data=JSON.parse(localStorage.getItem('stem-ship-workshop-v1'));if(Array.isArray(data))return [cleanProfile(data[0],0),cleanProfile(data[1],1)];}catch(_e){}return [defaultProfile(0),defaultProfile(1)];}
   let savedProfiles=loadProfiles(),workshopSlot=0,roomProfiles={};
   function persistProfiles(){try{localStorage.setItem('stem-ship-workshop-v1',JSON.stringify(savedProfiles));}catch(_e){}}
@@ -533,7 +540,7 @@
     c.on('open',()=>{if(mode!=='waiting'){c.send({type:'reject',reason:'Match already started.'});c.close();return;}c.send({type:'welcome',id,roster:[0,...connections.keys()].sort((a,b)=>a-b),profiles:roomProfiles});hostRoster();});
     c.on('data',m=>{
       if(!m||typeof m!=='object')return;
-      if((m.type==='hello'||m.type==='profile')&&connections.get(id)===c){roomProfiles[id]=cleanProfile(m.profile,id);if(mode==='host'&&engine){engine.setProfile(id,roomProfiles[id]);sendState();}else if(mode==='waiting')hostRoster();}
+      if((m.type==='hello'||m.type==='profile')&&connections.get(id)===c){roomProfiles[id]=assignedOnlineProfile(m.profile,id);if(mode==='host'&&engine){engine.setProfile(id,roomProfiles[id]);sendState();}else if(mode==='waiting')hostRoster();}
        else if(m.type==='action'&&mode==='host'&&engine&&connections.get(id)===c){processAction(id,m.action,m.value);sendState();}
       else if(m.type==='ready'&&mode==='host')sendState();
     });
@@ -544,7 +551,7 @@
     c.on('open',()=>{if(mode==='waiting')c.send({type:'hello',profile:savedProfiles[0]});});
     c.on('data',m=>{
       if(!m||typeof m!=='object')return;
-      if(m.type==='welcome'&&mode==='waiting'){myId=m.id;roster=m.roster||[];roomProfiles=m.profiles||{};roomProfiles[myId]=cleanProfile(savedProfiles[0],myId);c.send({type:'profile',profile:savedProfiles[0]});rosterView();$('wait-title').textContent=`P${myId+1} · JOINED`;}
+      if(m.type==='welcome'&&mode==='waiting'){myId=m.id;roster=m.roster||[];roomProfiles=m.profiles||{};roomProfiles[myId]=assignedOnlineProfile(savedProfiles[0],myId);c.send({type:'profile',profile:savedProfiles[0]});rosterView();$('wait-title').textContent=`P${myId+1} · JOINED`;}
       else if(m.type==='roster'&&mode==='waiting'){roster=m.roster||roster;roomProfiles=m.profiles||roomProfiles;rosterView();}
       else if(m.type==='start'&&mode==='waiting'){beginGame('guest',m.players);c.send({type:'ready'});}
       else if(m.type==='state'&&['guest','guest-disconnected'].includes(mode)&&m.state?.players?.length>=2){
