@@ -1,0 +1,98 @@
+name: Build STEAM Battleship APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'index.html'
+      - 'audio-engine.js'
+      - 'rbt-questions.js'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: steam-battleship-apk
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout game and Android app
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android platform
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Restore signing key for in-place APK updates
+        id: debug-keystore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: steam-battleship-debug-keystore-v1
+
+      - name: Bundle current game for offline local play
+        run: |
+          mkdir -p android/app/src/main/assets/game
+          cp index.html audio-engine.js rbt-questions.js android/app/src/main/assets/game/
+          test -s android/app/src/main/assets/game/index.html
+          test -s android/app/src/main/assets/game/audio-engine.js
+          test -s android/app/src/main/assets/game/rbt-questions.js
+
+      - name: Compile installable debug APK
+        working-directory: android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Cache signing key for future app upgrades
+        if: steps.debug-keystore-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: steam-battleship-debug-keystore-v1
+
+      - name: Prepare APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk STEAM-Battleship.apk
+          ls -lh STEAM-Battleship.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: STEAM-Battleship-Android-APK
+          path: STEAM-Battleship.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish direct-download APK as prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=android-latest
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" STEAM-Battleship.apk --clobber
+          else
+            gh release create "$TAG" STEAM-Battleship.apk \
+              --target "$GITHUB_SHA" \
+              --title "STEAM Battleship Android (latest)" \
+              --notes "Installable Android test APK. Landscape, full screen, live game plus bundled offline version. Android 8+." \
+              --prerelease
+          fi
