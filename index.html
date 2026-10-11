@@ -461,35 +461,67 @@
       this.changed(`P${id+1} disconnected`);
     }
     tick(dt){
-      dt=CLAMP(dt,0,.05);this.effects=this.effects.filter(e=>(e.age+=dt)<e.life);
+      dt=CLAMP(dt,0,.05);
+      this.effects=this.effects.filter(e=>(e.age+=dt)<e.life);
+      // Debris: visible for 3 seconds, sinks from 3–5 seconds, then gone.
+      for(const p of this.players)if(p.hp<=0&&p.sinkAge<5){
+        p.sinkAge=Math.min(5,p.sinkAge+dt);
+        if(p.sinkAge>=5)this.changed(); // Send final animation frame to guests.
+      }
       if(this.winner!==null)return;
       const ended=new Set(),remove=new Set();
+      for(const plane of this.airstrikes){
+        plane.age+=dt;
+        if(!plane.dropped&&plane.age>=.95){
+          plane.dropped=true;
+          const owner=this.player(plane.owner);
+          if(owner){
+            const target=this.player(plane.targetId);
+            const x=plane.aimCol+.5+(owner.team===0?-.9:.9);
+            const y=CLAMP(plane.aimRow-1.2,.2,ROWS-.2);
+            // Only one missile. Correct answers guide it to a target;
+            // wrong answers drop it unguided, with a chance to hit.
+            this.projectile(owner,'airstrike',180,plane.volley,0,target?.hp>0?target.id:null,{x,y});
+          }
+        }
+      }
+      this.airstrikes=this.airstrikes.filter(a=>a.age<2.8);
       for(const b of this.projectiles){
         if(b.delay>0){b.delay-=dt;continue;}b.age+=dt;
         if(b.homing){const target=this.player(b.targetId);if(target?.hp>0){
           const ax=target.col+.5-b.x,ay=target.row+.5-b.y;
           const norm=Math.hypot(ax,ay)||1;
-          // Smoothly track the chosen target, even while it moves.
-          let vx=b.vx*.5+ax/norm*SPEED.homing*.5,vy=b.vy*.5+ay/norm*SPEED.homing*.5;
-          const mag=Math.hypot(vx,vy)||1;b.vx=vx/mag*SPEED.homing;b.vy=vy/mag*SPEED.homing;
+          const vx=b.vx*.25+ax/norm*SPEED.airstrike*.75,vy=b.vy*.25+ay/norm*SPEED.airstrike*.75;
+          const mag=Math.hypot(vx,vy)||1;b.vx=vx/mag*SPEED.airstrike;b.vy=vy/mag*SPEED.airstrike;
         }}
         const steps=Math.max(1,Math.ceil(Math.hypot(b.vx,b.vy)*dt/.16));
         for(let i=0;i<steps;i++){
           b.x+=b.vx*dt/steps;b.y+=b.vy*dt/steps;
-          const target=(b.homing?this.enemy(b.team).filter(q=>q.id===b.targetId):this.enemy(b.team)).find(q=>Math.hypot(b.x-q.col-.5,b.y-q.row-.5)<.50);
+          const targets=b.homing?this.enemy(b.team).filter(q=>q.id===b.targetId):this.enemy(b.team);
+          const target=targets.find(q=>Math.hypot(b.x-q.col-.5,b.y-q.row-.5)<.50);
           if(target){this.impact(b,target);remove.add(b.id);ended.add(b.volley);break;}
         }
         if(this.winner!==null)break;
         if(remove.has(b.id))continue;
         if(b.x<-.7||b.x>COLS+.7||b.y<-.7||b.y>ROWS+.7||b.age>9){
-          this.effects.push({type:'splash',x:CLAMP(b.x,0,COLS),y:CLAMP(b.y,0,ROWS),age:0,life:.4,size:.42});remove.add(b.id);ended.add(b.volley);
+          this.effects.push({type:'splash',x:CLAMP(b.x,0,COLS),y:CLAMP(b.y,0,ROWS),age:0,life:.4,size:.42});
+          remove.add(b.id);ended.add(b.volley);
         }
       }
       if(remove.size)this.projectiles=this.projectiles.filter(b=>!remove.has(b.id));
       for(const volley of ended){
-        if(this.projectiles.some(b=>b.volley===volley))continue;
-        const owner=this.volleyOwners[volley],attacker=this.player(owner);
-        if(attacker?.lastVolley===volley&&!this.projectiles.some(b=>b.team===attacker.team)){
+        if(this.projectiles.some(b=>b.volley===volley)||this.airstrikes.some(a=>a.volley===volley&&!a.dropped))continue;
+        const record=this.volleyOwners[volley],attacker=this.player(record?.owner);
+        if(!record||!attacker)continue;
+        if(record.hit)this.missStreak[attacker.team]=0;
+        else{
+          this.missStreak[attacker.team]++;
+          if(this.missStreak[attacker.team]>=5){
+            this.missStreak[attacker.team]=0;
+            this.spawnRadio(1-attacker.team);
+          }
+        }
+        if(attacker.lastVolley===volley&&!this.projectiles.some(b=>b.team===attacker.team)){
           for(const defender of this.enemy(attacker.team))if(!defender.defenseOpen)defender.defenseOpen=true;
           this.changed();
         }
