@@ -153,7 +153,10 @@ window.STEAMBattleAudio=(() => {
   function start(){
     battle=true;
     unlock(); // AudioContext is unlocked by a preceding click or tap.
-    if(ctx&&settings.music)startClock();
+    if(ctx&&settings.music){
+      updateBus('music'); // Restore music after a previous match faded it out.
+      startClock();
+    }
   }
   function stop(){
     battle=false;stopClock();
