@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="STEAM Battleship app icon">
+ <defs><linearGradient id="sea" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#143e60"/><stop offset="1" stop-color="#051523"/></linearGradient><linearGradient id="hull" x1="0" x2="1"><stop stop-color="#2478b5"/><stop offset=".5" stop-color="#4bdce0"/><stop offset="1" stop-color="#118096"/></linearGradient></defs>
+ <rect width="512" height="512" rx="104" fill="url(#sea)"/>
+ <path d="M42 335Q87 312 143 337T248 337T352 333T470 338L470 476L42 476Z" fill="#16617d" opacity=".65"/>
+ <path d="M42 381Q91 359 147 383T253 384T362 384T470 383" fill="none" stroke="#3bc8dd" stroke-width="13" opacity=".5"/>
+ <path d="M64 284H447L418 354Q404 377 386 378H130Q104 377 93 353Z" fill="url(#hull)" stroke="#b7f7ff" stroke-width="9"/>
+ <path d="M119 314H401L387 351H138Z" fill="#07273d" opacity=".58"/>
+ <rect x="171" y="237" width="160" height="52" rx="5" fill="#d5f3ff"/>
+ <path d="M192 235V190H283L305 235Z" fill="#7ac5d4" stroke="#b8edff" stroke-width="6"/>
+ <path d="M214 201H237V225H214ZM249 201H272V225H249Z" fill="#0b435f"/>
+ <path d="M293 269H362V258L405 243L422 255L412 273H363" fill="#e9f9ff"/>
+ <rect x="245" y="136" width="11" height="56" fill="#d5f9ff"/>
+ <path d="M257 143L344 169L257 195Z" fill="#ffe28a"/>
+ <g fill="#e8f6ff"><circle cx="156" cy="336" r="10"/><circle cx="213" cy="336" r="10"/><circle cx="271" cy="336" r="10"/><circle cx="330" cy="336" r="10"/></g>
+ <path d="M92 410Q174 382 257 413T425 414" fill="none" stroke="#55e4db" stroke-width="10" stroke-linecap="round" opacity=".55"/>
+ </svg>
