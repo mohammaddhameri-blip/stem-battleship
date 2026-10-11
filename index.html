@@ -479,7 +479,8 @@
       this.effects=this.effects.filter(e=>(e.age+=dt)<e.life);
       // Debris: visible for 3 seconds, sinks from 3–5 seconds, then gone.
       for(const p of this.players)if(p.hp<=0&&p.sinkAge<5){
-        p.sinkAge=p.sinkAge+dt>=5-1e-6?5:p.sinkAge+dt;
+        const nextAge=p.sinkAge+dt;
+        p.sinkAge=nextAge>=5-1e-6?5:nextAge>=3-1e-6&&nextAge<3?3:nextAge;
         if(p.sinkAge>=5)this.changed(); // Send final animation frame to guests.
       }
       if(this.winner!==null)return;
