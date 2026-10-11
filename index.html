@@ -520,31 +520,32 @@
   function waiting(title,status){show('waiting');$('wait-title').textContent=title;$('wait-status').textContent=status;}
   function networkError(err){const message=err?.message||String(err||'Unknown connection error');$('wait-status').textContent=`Connection issue: ${message}. Try again.`;$('wait-title').textContent='UNABLE TO CONNECT';}
   function rosterView(){
-    const area=$('room-roster');area.innerHTML=roster.map(id=>`<span class="${id%2===0?'blue':'red'}">P${id+1} · ${id%2===0?'BLUE':'RED'}</span>`).join('');
+    const area=$('room-roster');area.innerHTML=roster.map(id=>`<span class="${id%2===0?'blue':'red'}">${esc(roomProfiles[id]?.name||`P${id+1}`)} · ${id%2===0?'BLUE':'RED'}</span>`).join('');
     if(mode==='waiting'&&myId===0){$('start-match').classList.toggle('hidden',roster.length<2);$('start-match').disabled=roster.length<2;}
     $('wait-status').textContent=mode==='waiting'&&myId===0?`${roster.length}/6 captains · ${roster.length<2?'Waiting for opponents':'Start whenever ready'}`:'Waiting for host to start…';
   }
   function broadcast(message){for(const c of connections.values())if(c.open)try{c.send(message);}catch(_e){}}
-  function hostRoster(){roster=[0,...connections.keys()].sort((a,b)=>a-b);broadcast({type:'roster',roster});rosterView();}
+  function hostRoster(){roster=[0,...connections.keys()].sort((a,b)=>a-b);broadcast({type:'roster',roster,profiles:roomProfiles});rosterView();}
   function attachGuest(c){
     if(!['waiting'].includes(mode)||connections.size>=5){c.on('open',()=>c.send({type:'reject',reason:'Room is full or already playing.'}));return;}
     const id=[1,2,3,4,5].find(n=>!connections.has(n));if(id===undefined)return;
     connections.set(id,c);
-    c.on('open',()=>{if(mode!=='waiting'){c.send({type:'reject',reason:'Match already started.'});c.close();return;}c.send({type:'welcome',id,roster:[0,...connections.keys()].sort((a,b)=>a-b)});hostRoster();});
+    c.on('open',()=>{if(mode!=='waiting'){c.send({type:'reject',reason:'Match already started.'});c.close();return;}c.send({type:'welcome',id,roster:[0,...connections.keys()].sort((a,b)=>a-b),profiles:roomProfiles});hostRoster();});
     c.on('data',m=>{
       if(!m||typeof m!=='object')return;
-      if(m.type==='action'&&mode==='host'&&engine&&connections.get(id)===c){processAction(id,m.action,m.value);sendState();}
+      if((m.type==='hello'||m.type==='profile')&&connections.get(id)===c){roomProfiles[id]=cleanProfile(m.profile,id);if(mode==='host'&&engine){engine.setProfile(id,roomProfiles[id]);sendState();}else if(mode==='waiting')hostRoster();}
+       else if(m.type==='action'&&mode==='host'&&engine&&connections.get(id)===c){processAction(id,m.action,m.value);sendState();}
       else if(m.type==='ready'&&mode==='host')sendState();
     });
-    c.on('close',()=>{if(connections.get(id)!==c)return;connections.delete(id);if(mode==='waiting')hostRoster();if(mode==='host'&&engine){engine.disconnect(id);sendState();}});
+    c.on('close',()=>{if(connections.get(id)!==c)return;connections.delete(id);if(mode==='waiting'){delete roomProfiles[id];hostRoster();}if(mode==='host'&&engine){engine.disconnect(id);sendState();}});
   }
   function attachHost(c){
     conn=c;
-    c.on('open',()=>{if(mode==='waiting')c.send({type:'hello'});});
+    c.on('open',()=>{if(mode==='waiting')c.send({type:'hello',profile:savedProfiles[0]});});
     c.on('data',m=>{
       if(!m||typeof m!=='object')return;
-      if(m.type==='welcome'&&mode==='waiting'){myId=m.id;roster=m.roster||[];rosterView();$('wait-title').textContent=`P${myId+1} · JOINED`;}
-      else if(m.type==='roster'&&mode==='waiting'){roster=m.roster||roster;rosterView();}
+      if(m.type==='welcome'&&mode==='waiting'){myId=m.id;roster=m.roster||[];roomProfiles=m.profiles||{};roomProfiles[myId]=cleanProfile(savedProfiles[0],myId);c.send({type:'profile',profile:savedProfiles[0]});rosterView();$('wait-title').textContent=`P${myId+1} · JOINED`;}
+      else if(m.type==='roster'&&mode==='waiting'){roster=m.roster||roster;roomProfiles=m.profiles||roomProfiles;rosterView();}
       else if(m.type==='start'&&mode==='waiting'){beginGame('guest',m.players);c.send({type:'ready'});}
       else if(m.type==='state'&&['guest','guest-disconnected'].includes(mode)&&m.state?.players?.length>=2){
         remoteState=m.state;setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));renderGameState(remoteState);
@@ -554,13 +555,13 @@
     c.on('close',()=>{if(mode==='waiting')networkError(new Error('Host disconnected'));else if(mode==='guest'){$('connection-label').textContent='DISCONNECTED';mode='guest-disconnected';}});
     c.on('error',e=>{if(mode==='waiting')networkError(e);});
   }
-  async function hostRoom(){destroyPeer();mode='waiting';room=randomRoom();waiting('CREATING ROOM…','Connecting…');$('room-share').classList.add('hidden');$('start-match').classList.remove('hidden');$('start-match').disabled=true;
+  async function hostRoom(){destroyPeer();roomProfiles={0:cleanProfile(savedProfiles[0],0)};mode='waiting';room=randomRoom();waiting('CREATING ROOM…','Connecting…');$('room-share').classList.add('hidden');$('start-match').classList.remove('hidden');$('start-match').disabled=true;
     try{await safePeerJs();if(mode!=='waiting')return;peer=new window.Peer(peerId(room));
       peer.on('open',()=>{if(mode!=='waiting')return;$('wait-title').textContent='FLEET LOBBY';$('share-code').textContent=room;$('room-share').classList.remove('hidden');rosterView();});
       peer.on('connection',c=>attachGuest(c));peer.on('error',e=>{if(mode==='waiting')networkError(e);});
     }catch(e){if(mode==='waiting')networkError(e);}
   }
-  async function joinRoom(code){destroyPeer();mode='waiting';room=code;waiting('JOINING ROOM…',`Connecting to ${room}…`);$('room-share').classList.add('hidden');$('start-match').classList.add('hidden');
+  async function joinRoom(code){destroyPeer();roomProfiles={};mode='waiting';room=code;waiting('JOINING ROOM…',`Connecting to ${room}…`);$('room-share').classList.add('hidden');$('start-match').classList.add('hidden');
     try{await safePeerJs();if(mode!=='waiting')return;peer=new window.Peer();peer.on('open',()=>{if(mode!=='waiting')return;attachHost(peer.connect(peerId(room),{reliable:true}));});peer.on('error',e=>{if(mode==='waiting')networkError(e);});}
     catch(e){if(mode==='waiting')networkError(e);}
   }
@@ -591,7 +592,7 @@
   function panelHTML(p){
     const ready=p.stage==='armed',sunk=p.hp<=0;
     const state=sunk?'● SUNK':ready?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';
-    const head=`<div class="console-top"><div class="console-name"><i class="captain-swatch"></i>P${p.id+1}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
+    const head=`<div class="console-top"><div class="console-name"><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
     let body;
     if(sunk){body='<div class="console-body">SUNK</div>';}
     else if(!ready){
@@ -606,7 +607,7 @@
   }
   function renderPanels(s){if(!s)return;const ids=mode==='local'?[0,1]:[myId];
     for(const child of [...controls.children])if(!ids.includes(Number(child.dataset.player)))child.remove();
-    ids.forEach(id=>{const p=s.players.find(x=>x.id===id);if(!p)return;const key=`${p.stage}-${p.question.id}-${p.defenseOpen}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.homing}`, old=controls.querySelector(`[data-player="${id}"]`);let el=old;
+    ids.forEach(id=>{const p=s.players.find(x=>x.id===id);if(!p)return;const key=`${p.stage}-${p.question.id}-${p.defenseOpen}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.homing}-${p.profile?.name}`, old=controls.querySelector(`[data-player="${id}"]`);let el=old;
       if(!el){el=document.createElement('section');el.className=`control-panel p${id}`;el.dataset.player=id;controls.appendChild(el);}
       if(el.dataset.renderKey!==key){el.innerHTML=panelHTML(p);el.dataset.renderKey=key;}
       const angle=el.querySelector('[data-angle-value]');if(angle)angle.textContent=`${Math.round(p.angle)}°`;
@@ -635,10 +636,10 @@
       if(s.winner!==null)endMatch(s);else $('end-overlay').classList.add('hidden');updateSfx(s);
     }
   }
-  function renderFleet(s){for(const team of [0,1]){$(team===0?'fleet-blue':'fleet-red').innerHTML=s.players.filter(p=>p.team===team).map(p=>`<span class="ship-hp ${p.hp<=0?'ship-knocked':''}">P${p.id+1}<span class="hp-small"><i style="width:${p.hp/MAX_HP*100}%"></i></span><b>${Math.ceil(p.hp)}</b></span>`).join('');}}
+  function renderFleet(s){for(const team of [0,1]){$(team===0?'fleet-blue':'fleet-red').innerHTML=s.players.filter(p=>p.team===team).map(p=>`<span class="ship-hp ${p.hp<=0?'ship-knocked':''}">${esc(p.profile?.name||`P${p.id+1}`)}<span class="hp-small"><i style="width:${p.hp/MAX_HP*100}%"></i></span><b>${Math.ceil(p.hp)}</b></span>`).join('');}}
   function endMatch(s){$('winner-heading').textContent=`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
     $('end-reason').textContent='All opposing battleships have been sunk.';
-    $('end-stats').innerHTML=s.players.map(p=>`<div>P${p.id+1}<br><strong>${p.correct} / ${p.answered}</strong><br>correct<br><strong>${p.shots}</strong><br>shots</div>`).join('');
+    $('end-stats').innerHTML=s.players.map(p=>`<div>${esc(p.profile?.name||`P${p.id+1}`)}<br><strong>${p.correct} / ${p.answered}</strong><br>correct<br><strong>${p.shots}</strong><br>shots</div>`).join('');
     $('rematch-btn').classList.toggle('hidden',mode==='guest');$('end-overlay').classList.remove('hidden');
   }
   controls.addEventListener('submit',e=>{const form=e.target.closest('[data-quiz]');if(!form)return;e.preventDefault();const panel=form.closest('[data-player]');const input=form.querySelector('input');if(panel&&input?.value.trim())doAction(Number(panel.dataset.player),'answer',input.value);});
@@ -709,7 +710,7 @@
   }
   function ship(p,t){
     const mid=PROJECT(p.col+.5,p.row+.5),face=p.team===0?1:-1,sc=TILE/100;
-    const base=p.team===0?'#368db8':'#c46678',light=p.team===0?'#daf8ff':'#ffe5e3',dark=p.team===0?'#173e58':'#743749';
+    const paint=cleanProfile(p.profile,p.id).colors,base=paint.body,light=paint.lining,dark=darken(paint.body,.43);
     ctx.save();ctx.translate(mid.x,mid.y+Math.sin(t*.002+p.id)*1.1);ctx.scale(face*sc,sc);ctx.globalAlpha=p.hp<=0?.26:1;
     // Side-profile ship sprite on a FLAT checkerboard tile: bow points toward the enemy.
     ellipse(0,27,47,9,'rgba(0,12,26,.43)');
@@ -721,21 +722,29 @@
     // Visible portholes reinforce the side view rather than a plan/top view.
     for(const x of [-28,-15,-2,11,24]){ellipse(x,18,2.1,2.1,'#d7f1f4');}
     // Superstructure, bridge windows and smokestack.
-    poly([[-26,7],[-25,-7],[-14,-7],[-13,7]],'#294658',light,1.2);
+    poly([[-26,7],[-25,-7],[-14,-7],[-13,7]],darken(paint.cannon,.55),light,1.2);
     poly([[-13,6],[-13,-13],[5,-13],[13,-6],[13,6]],light,'#33556a',1.3);
     poly([[-10,-10],[2,-10],[8,-5],[-10,-5]],'#28506b',null);
-    ctx.fillStyle=dark;ctx.fillRect(-22,-10,6,3);
+    ctx.fillStyle=darken(paint.cannon,.57);ctx.fillRect(-22,-10,6,3);
     ctx.strokeStyle=light;ctx.lineWidth=1.8;
     ctx.beginPath();ctx.moveTo(-4,-14);ctx.lineTo(-4,-26);ctx.moveTo(-13,-22);ctx.lineTo(6,-22);ctx.stroke();
-    ellipse(-4,-26,2,2,'#edc56f');
+    ellipse(-4,-26,2,2,paint.flag);
+     poly([[-4,-27],[11,-23],[-4,-19]],paint.flag,light,1);
     // Rotating barrel: a top-down firing bearing, rendered on a SIDE-PROFILE hull.
     ctx.save();ctx.translate(23,1);ctx.rotate(-p.angle*Math.PI/180);
-    ctx.strokeStyle='#092638';ctx.lineWidth=8;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(24,0);ctx.stroke();
-    ctx.strokeStyle=light;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(1,-1);ctx.lineTo(24,-1);ctx.stroke();ctx.restore();
-    poly([[12,7],[14,-2],[19,-7],[26,-7],[32,-2],[34,7]],base,light,1.2);
+    ctx.strokeStyle=darken(paint.barrel,.39);ctx.lineWidth=8;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(24,0);ctx.stroke();
+    ctx.strokeStyle=paint.barrel;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(1,-1);ctx.lineTo(24,-1);ctx.stroke();ctx.restore();
+    poly([[12,7],[14,-2],[19,-7],[26,-7],[32,-2],[34,7]],paint.cannon,light,1.2);
     ctx.restore();
-    ctx.textAlign='center';ctx.font=`900 ${Math.max(10,13*sc)}px system-ui`;ctx.fillStyle=p.team===0?'#d7f6ff':'#ffdbdf';
-    ctx.fillText(`P${p.id+1}`,mid.x,mid.y-34*sc);
+    const name=p.profile?.name||`P${p.id+1}`,maxWidth=Math.min(TILE*1.7,154),fontSize=Math.max(10,Math.min(13,TILE*.18));
+    ctx.save();ctx.font=`900 ${fontSize}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';
+    const labelWidth=Math.min(maxWidth,ctx.measureText(name).width+14),labelY=mid.y-44*sc-12;
+    ctx.fillStyle=p.team===0?'rgba(3,29,49,.92)':'rgba(49,20,33,.92)';
+    ctx.fillRect(mid.x-labelWidth/2,labelY,labelWidth,20);
+    ctx.strokeStyle=p.team===0?'#76d5f5':'#f7a5b2';ctx.lineWidth=1;
+    ctx.strokeRect(mid.x-labelWidth/2,labelY,labelWidth,20);
+    ctx.fillStyle='#f5fbff';ctx.fillText(name,mid.x,labelY+10,Math.max(10,labelWidth-8));
+    ctx.restore();
   }
   function paintProjectiles(s,t){for(const b of s.projectiles){if(b.delay>0)continue;
     const mid=PROJECT(b.x,b.y);
@@ -795,7 +804,7 @@
   $('cancel-wait').addEventListener('click',resetToLobby);
   $('menu-btn').addEventListener('click',()=>{if(window.confirm('Leave the current match?'))resetToLobby();});
   $('end-menu-btn').addEventListener('click',resetToLobby);
-  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){engine=new Game(roster,true);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
+  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){engine=new Game(roster,true,roomProfiles);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
   $('copy-invite').addEventListener('click',async()=>{const url=new URL(window.location.href);url.searchParams.set('join',room);url.hash='';try{await navigator.clipboard.writeText(url.toString());$('copy-invite').textContent='✓ COPIED';}catch(_e){window.prompt('Copy this link to share:',url.toString());}});
   $('sound-btn').addEventListener('click',()=>{soundOn=!soundOn;$('sound-btn').textContent=soundOn?'♫':'♪';if(soundOn)tone(540,.08);});
   const joinParam=new URLSearchParams(window.location.search).get('join');if(joinParam&&/^[A-Z0-9]{6}$/i.test(joinParam)){$('room-code').value=joinParam.toUpperCase();show('online-setup');}
@@ -805,7 +814,7 @@
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'1.7-rbt-325-questions',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'1.8-ship-workshop',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
