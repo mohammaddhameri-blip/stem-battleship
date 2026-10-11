@@ -152,13 +152,42 @@
 .bearing-n{top:-1px;left:50%;transform:translateX(-50%)}.bearing-e{top:50%;right:3px;transform:translateY(-50%)}.bearing-s{bottom:1px;left:50%;transform:translateX(-50%)}.bearing-w{top:50%;left:3px;transform:translateY(-50%)}
 .bearing-readout{display:flex;flex-direction:column;gap:8px;min-width:84px}.bearing-readout strong{font-size:28px;font-variant-numeric:tabular-nums;color:#67f1d8}.bearing-readout span{font-size:9px;font-weight:800;letter-spacing:1px;color:#97b8cb}
 @media(max-width:420px){.bearing-dial{width:112px;height:112px}.bearing-pointer:before{height:35px}.bearing-readout strong{font-size:23px}}
+
+/* STEAM Battle Sound Studio: individual SFX and original-music controls */
+.topbar{position:relative}
+.top-actions{position:relative}
+.audio-panel{position:absolute;right:38px;top:46px;z-index:18;width:min(310px,calc(100vw - 23px));padding:18px;border:1px solid #477a8d;border-radius:13px;background:linear-gradient(145deg,#143349,#071a2a);box-shadow:0 17px 55px #0009;color:#e8f9ff}
+.audio-panel-title{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:14px;font-weight:1000;letter-spacing:1px;margin-bottom:14px}
+.audio-panel-title span{font-size:9px;font-weight:800;letter-spacing:.6px;color:#73dacb}
+.audio-settings-row{display:flex;align-items:center;justify-content:space-between;margin:15px 0 7px;font-size:11px;font-weight:900;letter-spacing:.9px}
+.audio-toggle{padding:7px 16px;min-width:55px;border:1px solid #367e79;border-radius:7px;background:#145047;color:#aff9e2;font-size:11px;font-weight:900}
+.audio-toggle[aria-pressed=false]{background:#253443;border-color:#456374;color:#92aaba}
+.audio-level{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#a8cbd6}
+.audio-level span:last-child{font-variant-numeric:tabular-nums;color:#e6fff4}
+.audio-panel input[type=range]{display:block;width:100%;height:30px;margin:6px 0 10px;accent-color:#50dcca;cursor:pointer}
+.audio-test{width:100%;margin-top:6px;padding:10px;background:#15374a;border:1px solid #4a7c86;border-radius:7px;color:#d5fff4;font-size:11px;font-weight:900;letter-spacing:1px}
+.audio-panel p{font-size:10px;line-height:1.4;color:#8aafbd;margin:12px 0 0}
+#sound-btn[aria-expanded=true]{border-color:#5de4d5;background:#164b52;color:#eafff4}
+@media(max-width:600px){.audio-panel{right:0;top:44px}.audio-panel-title{font-size:12px}}
+
 </style>
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
 <div class="brand"><div class="brand-mark">⚓</div><div><div class="brand-title">STEAM <span>BATTLESHIP</span><small class="brand-by">by MrDhameri</small></div></div></div>
-<div class="top-actions"><button aria-label="How to play" class="icon-btn" id="help-btn" title="How to play" type="button">?</button><span class="online-indicator" id="connection-label">READY</span><button aria-label="Toggle sound" class="icon-btn" id="sound-btn" title="Toggle sound" type="button">♪</button><button aria-label="Leave match" class="icon-btn hidden" id="menu-btn" title="Leave match" type="button">←</button></div>
+<div class="top-actions"><button aria-label="How to play" class="icon-btn" id="help-btn" title="How to play" type="button">?</button><span class="online-indicator" id="connection-label">READY</span><button aria-label="Music and sound settings" aria-controls="audio-panel" aria-expanded="false" class="icon-btn" id="sound-btn" title="Music and sound settings" type="button">♫</button>
+<div class="audio-panel hidden" id="audio-panel" role="group" aria-label="Audio settings">
+  <div class="audio-panel-title">AUDIO <span>ORIGINAL SOUNDTRACK</span></div>
+  <div class="audio-settings-row"><span>♫ MUSIC</span><button type="button" class="audio-toggle" id="music-toggle" aria-pressed="true">ON</button></div>
+  <label class="audio-level" for="music-volume"><span>Music volume</span><span id="music-percent">47%</span></label>
+  <input type="range" id="music-volume" min="0" max="100" value="47" aria-label="Music volume" />
+  <div class="audio-settings-row"><span>◖)) SOUND FX</span><button type="button" class="audio-toggle" id="sfx-toggle" aria-pressed="true">ON</button></div>
+  <label class="audio-level" for="sfx-volume"><span>Effects volume</span><span id="sfx-percent">74%</span></label>
+  <input type="range" id="sfx-volume" min="0" max="100" value="74" aria-label="Sound effects volume" />
+  <button type="button" id="test-sfx" class="audio-test">▶ TEST SOUND</button>
+  <p>Original, royalty-free procedural music and effects. No downloads needed.</p>
+</div><button aria-label="Leave match" class="icon-btn hidden" id="menu-btn" title="Leave match" type="button">←</button></div>
 </header>
 <main>
 <section class="lobby" id="lobby">
@@ -214,6 +243,7 @@
 </div>
 <div aria-labelledby="winner-heading" aria-modal="true" class="end-overlay hidden" id="end-overlay" role="dialog"><div class="end-card"><div class="eyebrow">MATCH COMPLETE</div><div class="end-symbol">⚓</div><h2 id="winner-heading">VICTORY</h2><p id="end-reason"></p><div class="end-stats" id="end-stats"></div><button class="primary-btn" id="rematch-btn">PLAY AGAIN</button><button class="back-link" id="end-menu-btn">MENU</button></div></div>
 <div aria-label="How to play" aria-modal="true" class="help-overlay hidden" id="help-overlay" role="dialog"><div class="help-card"><div class="help-heading"><strong>HOW TO PLAY</strong><button aria-label="Close help" class="icon-btn" id="close-help" type="button">✕</button></div><div class="help-step"><b>1</b><span>ANSWER a question.</span></div><div class="help-step"><b>2</b><span>TAP an adjacent square · AIM · EQUIP.</span></div><div class="help-step"><b>3</b><span>FIRE or REPAIR. Either ends the attack cycle.</span></div><p>After an incoming shot resolves, defensive tile movement is free until the opponent fires again.</p><p>Wrong answers cause random shots. Wrong answers send shots in random directions. Repair restores 35 HP. Torpedo requires three consecutive correct answers.</p><p>Online: up to 3v3. When the other team misses five consecutive volleys, a radio appears on your side. Collect it to call a B-2 airstrike (35 damage). Tap an enemy to select a target.</p></div></div><script src="rbt-questions.js"></script>
+<script src="audio-engine.js"></script>
 <script>
 
 /* STEM BATTLESHIP — 2-player local + peer-to-peer online classroom prototype.
@@ -548,21 +578,57 @@
     publicState(){return {online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
-  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',soundOn=false,audioCtx=null,lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null;
+  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null;
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
   const show=key=>['lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
-  function tone(freq=160,duration=.11,type='sine',vol=.055){
-    if(!soundOn)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;audioCtx=audioCtx||new C();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration);}catch(_e){}
+  // Royalty-free original procedural audio lives in audio-engine.js.
+  // If Web Audio is blocked, the rest of the game runs as normal.
+  const audio=window.STEAMBattleAudio||{
+    unlock(){},start(){},stop(){},sfx(){},legacyTone(){},
+    setMusicEnabled(){},setSfxEnabled(){},setMusicVolume(){},setSfxVolume(){},
+    getSettings(){return {music:false,sfx:false,musicVolume:0,sfxVolume:0};},
+    status(){return {supported:false}}
+  };
+  function tone(freq=420,duration=.08,type='sine',volume=.055){
+    audio.legacyTone(freq,duration,type,volume);
   }
-  function updateSfx(s){if(!s||s.eventId===lastSfxEvent)return;lastSfxEvent=s.eventId;if(s.notice.includes('fired'))tone(105,.24,'sawtooth',.085);else if(s.notice.includes('wins'))tone(480,.5,'triangle',.09);else if(s.notice.includes('Direct hit'))tone(85,.19,'square',.07);else if(s.notice.includes('correctly'))tone(680,.095,'sine',.04);}
+  function updateSfx(s){
+    if(!s||s.eventId===lastSfxEvent)return;
+    lastSfxEvent=s.eventId;
+    const notice=String(s.notice||'');
+    if(/fired AIRSTRIKE/i.test(notice))audio.sfx('airstrike');
+    else if(/fired FLAK/i.test(notice))audio.sfx('flak');
+    else if(/fired TORPEDO/i.test(notice))audio.sfx('torpedo');
+    else if(/fired SHELL/i.test(notice))audio.sfx('shell');
+    else if(/destroyed|sunk/i.test(notice))audio.sfx('destroy');
+    else if(/Direct hit/i.test(notice))audio.sfx('hit');
+    else if(/repaired/i.test(notice))audio.sfx('repair');
+    else if(/Radio for|ready to call an airstrike/i.test(notice))audio.sfx('radio');
+    else if(/wins!/i.test(notice))audio.sfx('victory');
+    else if(/incorrectly/i.test(notice))audio.sfx('wrong');
+    else if(/correctly/i.test(notice))audio.sfx('correct');
+  }
+  function syncAudioControls(){
+    const st=audio.getSettings();
+    $('music-toggle').textContent=st.music?'ON':'OFF';
+    $('music-toggle').setAttribute('aria-pressed',String(st.music));
+    $('sfx-toggle').textContent=st.sfx?'ON':'OFF';
+    $('sfx-toggle').setAttribute('aria-pressed',String(st.sfx));
+    $('music-volume').value=Math.round(st.musicVolume*100);
+    $('sfx-volume').value=Math.round(st.sfxVolume*100);
+    $('music-percent').textContent=`${Math.round(st.musicVolume*100)}%`;
+    $('sfx-percent').textContent=`${Math.round(st.sfxVolume*100)}%`;
+    $('sound-btn').textContent=st.music||st.sfx?'♫':'♩';
+    $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
+  }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){destroyPeer();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){audio.stop();destroyPeer();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
     mode=kind;const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');$('room-chip').classList.toggle('hidden',kind==='local');$('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'LOCAL':`P${myId+1} · ONLINE`;
-    controls.classList.toggle('single',kind!=='local');controls.innerHTML='';show('battle');renderGameState(engine?.publicState()||null);
+    controls.classList.toggle('single',kind!=='local');controls.innerHTML='';show('battle');audio.start();renderGameState(engine?.publicState()||null);
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -713,7 +779,7 @@
     }
   }
   function renderFleet(s){for(const team of [0,1]){$(team===0?'fleet-blue':'fleet-red').innerHTML=s.players.filter(p=>p.team===team).map(p=>`<span class="ship-hp ${p.hp<=0?'ship-knocked':''}">${esc(p.profile?.name||`P${p.id+1}`)}<span class="hp-small"><i style="width:${p.hp/MAX_HP*100}%"></i></span><b>${Math.ceil(p.hp)}</b></span>`).join('');}}
-  function endMatch(s){$('winner-heading').textContent=`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
+  function endMatch(s){audio.stop();$('winner-heading').textContent=`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
     $('end-reason').textContent='All opposing battleships have been sunk.';
     $('end-stats').innerHTML=s.players.map(p=>`<div>${esc(p.profile?.name||`P${p.id+1}`)}<br><strong>${p.correct} / ${p.answered}</strong><br>correct<br><strong>${p.shots}</strong><br>shots</div>`).join('');
     $('rematch-btn').classList.toggle('hidden',mode==='guest');$('end-overlay').classList.remove('hidden');
@@ -995,9 +1061,38 @@
   $('cancel-wait').addEventListener('click',resetToLobby);
   $('menu-btn').addEventListener('click',()=>{if(window.confirm('Leave the current match?'))resetToLobby();});
   $('end-menu-btn').addEventListener('click',resetToLobby);
-  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){engine=new Game(roster,true,roomProfiles);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
+  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){audio.start();engine=new Game(roster,true,roomProfiles);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
   $('copy-invite').addEventListener('click',async()=>{const url=new URL(window.location.href);url.searchParams.set('join',room);url.hash='';try{await navigator.clipboard.writeText(url.toString());$('copy-invite').textContent='✓ COPIED';}catch(_e){window.prompt('Copy this link to share:',url.toString());}});
-  $('sound-btn').addEventListener('click',()=>{soundOn=!soundOn;$('sound-btn').textContent=soundOn?'♫':'♪';if(soundOn)tone(540,.08);});
+  $('sound-btn').addEventListener('click',()=>{
+    audio.unlock();
+    const panel=$('audio-panel'),wasHidden=panel.classList.contains('hidden');
+    panel.classList.toggle('hidden',!wasHidden);
+    $('sound-btn').setAttribute('aria-expanded',String(wasHidden));
+    if(wasHidden)syncAudioControls();
+  });
+  $('music-toggle').addEventListener('click',()=>{
+    const st=audio.getSettings();audio.setMusicEnabled(!st.music);syncAudioControls();audio.sfx('click');
+  });
+  $('sfx-toggle').addEventListener('click',()=>{
+    const st=audio.getSettings();audio.setSfxEnabled(!st.sfx);syncAudioControls();if(!st.sfx)audio.sfx('correct');
+  });
+  $('music-volume').addEventListener('input',e=>{
+    audio.setMusicVolume(Number(e.target.value)/100);
+    $('music-percent').textContent=e.target.value+'%';
+  });
+  $('sfx-volume').addEventListener('input',e=>{
+    audio.setSfxVolume(Number(e.target.value)/100);
+    $('sfx-percent').textContent=e.target.value+'%';
+  });
+  $('test-sfx').addEventListener('click',()=>{audio.unlock();audio.sfx('airstrike');});
+  document.addEventListener('pointerdown',()=>audio.unlock(),{once:true});
+  document.addEventListener('click',e=>{
+    if(!$('audio-panel').classList.contains('hidden')&&!e.target.closest('#audio-panel')&&!e.target.closest('#sound-btn')){
+      $('audio-panel').classList.add('hidden');
+      $('sound-btn').setAttribute('aria-expanded','false');
+    }
+  });
+  syncAudioControls();
   const joinParam=new URLSearchParams(window.location.search).get('join');if(joinParam&&/^[A-Z0-9]{6}$/i.test(joinParam)){$('room-code').value=joinParam.toUpperCase();show('online-setup');}
   // A short help panel keeps the board uncluttered until needed.
   $('help-btn').addEventListener('click',()=>{$('help-overlay').classList.remove('hidden');});
@@ -1005,7 +1100,7 @@
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'1.9-steam-airstrike',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.0-original-battle-audio',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
