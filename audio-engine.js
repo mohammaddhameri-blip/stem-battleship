@@ -2,7 +2,7 @@
  * STEAM BATTLESHIP — ORIGINAL PROCEDURAL SOUNDTRACK & EFFECTS
  * Written for this game: no external audio files, third-party recordings,
  * licensed samples, music services, attribution requirements or royalties.
- * 128 BPM, eight-bar minor-key orchestral/electronic battle loop.
+ * 128 BPM, sixteen-bar minor-key orchestral/electronic battle loop.
  * Web Audio synthesis runs locally and offline after first user interaction.
  */
 window.STEAMBattleAudio=(() => {
@@ -106,13 +106,16 @@ window.STEAMBattleAudio=(() => {
   function snare(t){noise(t,.125,.066,musicBus,1450);voice(205,t,.076,.021,musicBus,'triangle',110);}
   function hat(t,accent){noise(t,.047,accent?.019:.010,musicBus,6500);}
   function composeStep(time,index){
-    const bar=Math.floor(index/16)%8,step=index%16,roots=chordRoots[bar],chord=chords[bar];
-    if(step===0||step===8||step===10)kick(time,step===0?.12:.085);
+    const bar=Math.floor(index/16)%8,section=Math.floor(index/128)%2;
+    const step=index%16,roots=chordRoots[bar],chord=chords[bar];
+    if(step===0||step===8||step===10||(section===1&&(step===6||step===14)))kick(time,step===0?.12:.085);
     if(step===4||step===12)snare(time);
+    if(section===1&&(step===3||step===11))hat(time,true);
     if(step%2===0)hat(time,step%4===0);
     if(step===0){
-      for(const f of chord)voice(f,time,1.72,.018,musicBus,'sawtooth',null,1250,.11);
+      for(const f of chord)voice(f,time,1.72,section===1?.022:.018,musicBus,'sawtooth',null,1250,.11);
       voice(roots/2,time,1.83,.043,musicBus,'sine',null,0,.09);
+      if(section===1)voice(chord[0]*2,time,1.5,.012,musicBus,'triangle',null,0,.13);
     }
     if(step%4===0){
       const note=step===12?roots*1.5:roots;
@@ -127,11 +130,12 @@ window.STEAMBattleAudio=(() => {
     }
     if(step===0||step===5||step===9||step===13){
       const pos=step===0?0:step===5?1:step===9?2:3;
-      const pitch=melody[bar][pos];
+      const pitch=melody[bar][pos]*(section===1&&step===13?2:1);
       voice(pitch,time,.28,.041,musicBus,'sawtooth',null,2450,.025);
       voice(pitch/2,time,.23,.014,musicBus,'triangle');
     }
     if(step===15&&bar%2===1)noise(time,.20,.052,musicBus,4500);
+    if(section===1&&step===15&&bar===7)noise(time,.45,.085,musicBus,5500);
   }
   function tickMusic(){
     if(!battle||!settings.music||!ctx||ctx.state!=='running')return;
@@ -140,7 +144,7 @@ window.STEAMBattleAudio=(() => {
     let count=0;
     while(nextStepTime<now+.32&&count++<8){
       composeStep(nextStepTime,stepIndex);
-      nextStepTime+=stepTime;stepIndex=(stepIndex+1)%128;
+      nextStepTime+=stepTime;stepIndex=(stepIndex+1)%256;
     }
   }
   function startClock(){
