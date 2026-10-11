@@ -1,0 +1,41 @@
+/* STEAM Battleship PWA — same local game as the Android APK.
+ * Only cache same-origin static assets. Never cache signaling/data channels.
+ * Network-first HTML ensures new code arrives on the next visit; offline fallback
+ * permits same-device play and keeps the 325-question bank and original audio.
+ */
+const CACHE='steam-battleship-shell-v2.1.0';
+const SHELL=['./','./index.html','./audio-engine.js','./rbt-questions.js','./manifest.webmanifest','./icons/steam-battleship.svg','./icons/icon-192.png','./icons/icon-512.png'];
+self.addEventListener('install',event=>{
+  event.waitUntil(caches.open(CACHE).then(cache=>Promise.all(
+    SHELL.map(path=>cache.add(path).catch(()=>undefined))
+  )).then(()=>self.skipWaiting()));
+});
+self.addEventListener('activate',event=>{
+  event.waitUntil(caches.keys().then(keys=>Promise.all(
+    keys.filter(key=>key.startsWith('steam-battleship-shell-')&&key!==CACHE)
+      .map(key=>caches.delete(key))
+  )).then(()=>self.clients.claim()));
+});
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  if(request.method!=='GET'||new URL(request.url).origin!==self.location.origin)return;
+  if(request.mode==='navigate'){
+    event.respondWith(fetch(request).then(response=>{
+      if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put('./index.html',copy));}
+      return response;
+    }).catch(async()=>{
+      return (await caches.match('./index.html'))||
+        new Response('Offline copy unavailable. Connect to the internet once before playing offline.',{status:503,headers:{'Content-Type':'text/plain'}});
+    }));
+    return;
+  }
+  event.respondWith(caches.match(request).then(cached=>
+    cached||fetch(request).then(response=>{
+      if(response.ok&&new URL(request.url).origin===self.location.origin){
+        const copy=response.clone();
+        caches.open(CACHE).then(cache=>cache.put(request,copy));
+      }
+      return response;
+    })
+  ));
+});
