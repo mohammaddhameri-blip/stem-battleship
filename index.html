@@ -604,7 +604,7 @@
     else if(/Direct hit/i.test(notice))audio.sfx('hit');
     else if(/repaired/i.test(notice))audio.sfx('repair');
     else if(/Radio for|ready to call an airstrike/i.test(notice))audio.sfx('radio');
-    else if(/wins!/i.test(notice))audio.sfx('victory');
+    else if(/wins!/i.test(notice))audio.sfx('destroy'); // The final ship breaks apart.
     else if(/incorrectly/i.test(notice))audio.sfx('wrong');
     else if(/correctly/i.test(notice))audio.sfx('correct');
   }
@@ -618,6 +618,7 @@
     $('sfx-volume').value=Math.round(st.sfxVolume*100);
     $('music-percent').textContent=`${Math.round(st.musicVolume*100)}%`;
     $('sfx-percent').textContent=`${Math.round(st.sfxVolume*100)}%`;
+    $('test-sfx').disabled=!st.sfx;
     $('sound-btn').textContent=st.music||st.sfx?'♫':'♩';
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
@@ -779,7 +780,7 @@
     }
   }
   function renderFleet(s){for(const team of [0,1]){$(team===0?'fleet-blue':'fleet-red').innerHTML=s.players.filter(p=>p.team===team).map(p=>`<span class="ship-hp ${p.hp<=0?'ship-knocked':''}">${esc(p.profile?.name||`P${p.id+1}`)}<span class="hp-small"><i style="width:${p.hp/MAX_HP*100}%"></i></span><b>${Math.ceil(p.hp)}</b></span>`).join('');}}
-  function endMatch(s){audio.stop();$('winner-heading').textContent=`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
+  function endMatch(s){audio.stop();audio.sfx('victory');$('winner-heading').textContent=`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
     $('end-reason').textContent='All opposing battleships have been sunk.';
     $('end-stats').innerHTML=s.players.map(p=>`<div>${esc(p.profile?.name||`P${p.id+1}`)}<br><strong>${p.correct} / ${p.answered}</strong><br>correct<br><strong>${p.shots}</strong><br>shots</div>`).join('');
     $('rematch-btn').classList.toggle('hidden',mode==='guest');$('end-overlay').classList.remove('hidden');
