@@ -1,0 +1,41 @@
+{
+  "id": "/stem-battleship/",
+  "name": "STEAM BATTLESHIP by MrDhameri",
+  "short_name": "STEAM Battleship",
+  "description": "Cross-platform STEAM Battleship. Play with Android and iPhone friends in 1v1 to 3v3 online matches.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#06101c",
+  "theme_color": "#071425",
+  "orientation": "any",
+  "categories": [
+    "games",
+    "education"
+  ],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "./icons/steam-battleship.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
