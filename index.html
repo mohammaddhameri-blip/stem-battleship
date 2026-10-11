@@ -353,7 +353,7 @@
     }
     return {id:questionCounter,kind:'number',text,answer:String(answer)};
   }
-  function makePlayer(id,team,col,row,profile){return {id,team,col,row,profile:cleanProfile(profile,id),hp:MAX_HP,angle:0,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile){return {id,team,col,row,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
     constructor(ids=[0,1],online=false,profiles=null){
       this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
@@ -479,7 +479,7 @@
       this.effects=this.effects.filter(e=>(e.age+=dt)<e.life);
       // Debris: visible for 3 seconds, sinks from 3–5 seconds, then gone.
       for(const p of this.players)if(p.hp<=0&&p.sinkAge<5){
-        p.sinkAge=Math.min(5,p.sinkAge+dt);
+        p.sinkAge=p.sinkAge+dt>=5-1e-6?5:p.sinkAge+dt;
         if(p.sinkAge>=5)this.changed(); // Send final animation frame to guests.
       }
       if(this.winner!==null)return;
