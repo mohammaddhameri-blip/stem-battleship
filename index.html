@@ -747,7 +747,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     publicState(){return {movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
-  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null;
+  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,localCaptain=0,zoomPercent=50,guestVisual=new Map();
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
   const show=key=>['lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
   // Royalty-free original procedural audio lives in audio-engine.js.
@@ -761,6 +761,37 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   function tone(freq=420,duration=.08,type='sine',volume=.055){
     audio.legacyTone(freq,duration,type,volume);
   }
+  function syncZoom(){$('zoom-fit').textContent=zoomPercent===50?'FIT · 50%':`${zoomPercent}% · FIT`;}
+  const cameraScale=()=>zoomPercent/50;
+  function fitCanvas(){
+    const frame=$('battle').classList.contains('hidden')?null:canvas.parentElement;
+    if(!frame)return;
+    const bounds=frame.getBoundingClientRect();
+    if(bounds.width<1||bounds.height<1)return;
+    const w=Math.max(1,Math.min(bounds.width,bounds.height*W/H));
+    const h=w*H/W;
+    canvas.style.width=`${w}px`;canvas.style.height=`${h}px`;
+  }
+  function updateZoom(step){
+    zoomPercent=CLAMP(step,25,150);syncZoom();
+  }
+  $('zoom-out').addEventListener('click',()=>updateZoom(zoomPercent-10));
+  $('zoom-in').addEventListener('click',()=>updateZoom(zoomPercent+10));
+  $('zoom-fit').addEventListener('click',()=>{updateZoom(50);fitCanvas();});
+  const canvasObserver=new ResizeObserver(()=>fitCanvas());
+  canvasObserver.observe($('battle').querySelector('.sea-frame'));
+  window.addEventListener('resize',fitCanvas);
+  if(window.visualViewport)window.visualViewport.addEventListener('resize',fitCanvas);
+  $('captain-switch').addEventListener('click',e=>{
+    const btn=e.target.closest('[data-captain]');if(!btn||mode!=='local')return;
+    localCaptain=Number(btn.dataset.captain);
+    $('captain-switch').querySelectorAll('[data-captain]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captain)===localCaptain));
+    renderPanels(getGameState());
+  });
+  const position=p=>{
+    const smooth=mode==='guest'?guestVisual.get(p.id):null;
+    return {x:smooth?.x??p.x??p.col+.5,y:smooth?.y??p.y??p.row+.5};
+  };
   function updateSfx(s){
     if(!s||s.eventId===lastSfxEvent)return;
     lastSfxEvent=s.eventId;
@@ -792,13 +823,13 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){audio.stop();destroyPeer();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){audio.stop();destroyPeer();localCaptain=0;guestVisual.clear();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
-    mode=kind;const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles):null;
+    mode=kind;localCaptain=0;guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');$('room-chip').classList.toggle('hidden',kind==='local');$('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'LOCAL':`P${myId+1} · ONLINE`;
-    controls.classList.toggle('single',kind!=='local');controls.innerHTML='';show('battle');audio.start();renderGameState(engine?.publicState()||null);
+    controls.classList.toggle('single',true);controls.innerHTML='';$('captain-switch').classList.toggle('hidden',kind!=='local');show('battle');fitCanvas();audio.start();renderGameState(engine?.publicState()||null);
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -837,9 +868,9 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       if(!m||typeof m!=='object')return;
       if(m.type==='welcome'&&mode==='waiting'){myId=m.id;roster=m.roster||[];roomProfiles=m.profiles||{};roomProfiles[myId]=assignedOnlineProfile(savedProfiles[0],myId);c.send({type:'profile',profile:savedProfiles[0]});rosterView();$('wait-title').textContent=`P${myId+1} · JOINED`;}
       else if(m.type==='roster'&&mode==='waiting'){roster=m.roster||roster;roomProfiles=m.profiles||roomProfiles;rosterView();}
-      else if(m.type==='start'&&mode==='waiting'){beginGame('guest',m.players);c.send({type:'ready'});}
+      else if(m.type==='start'&&mode==='waiting'){beginGame('guest',m.players);$('battle').dataset.moveMode=m.movementMode==='auto'?'auto':'manual';c.send({type:'ready'});}
       else if(m.type==='state'&&['guest','guest-disconnected'].includes(mode)&&m.state?.players?.length>=2){
-        remoteState=m.state;setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));renderGameState(remoteState);
+        remoteState=m.state;setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));for(const p of remoteState.players)if(!guestVisual.has(p.id))guestVisual.set(p.id,{x:p.x??p.col+.5,y:p.y??p.row+.5});renderGameState(remoteState);
       }
       else if(m.type==='reject'){networkError(new Error(m.reason||'Room rejected connection'));}
     });
@@ -858,7 +889,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   }
   function startOnlineMatch(){
     if(mode!=='waiting'||myId!==0||roster.length<2)return;
-    const ids=[...roster];broadcast({type:'start',players:ids});beginGame('host',ids);sendState();
+    const ids=[...roster];broadcast({type:'start',players:ids,movementMode:$('movement-mode').value});beginGame('host',ids);sendState();
   }
   function sendState(){if(mode==='host'&&engine){broadcast({type:'state',state:engine.publicState()});lastSent=performance.now();lastSentVersion=engine.version;}}
   function processAction(id,action,value){if(!engine)return;
@@ -902,13 +933,13 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       const answer=`<div class="quiz-options">${p.question.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
       body=`<div class="console-body"><div class="question-text">${esc(p.question.text)}</div>${answer}</div>`;
     }else{
-      body=`<div class="console-body"><div class="control-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="display:none"':''}><div class="box-label">AIM</div>${sliderHTML(p)}</div><div class="control-box" style="margin-top:9px"><div class="box-label">AMMO</div><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div></div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'CALL AIRSTRIKE ✈':'FIRE ➤'}</button></div>`;
+      body=`<div class="console-body armed-body"><div class="control-box aim-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="visibility:hidden"':''}><div class="box-label">AIM</div>${sliderHTML(p)}</div><div class="combat-row"><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'AIRSTRIKE ✈':'FIRE!'}</button></div></div>`;
     }
     return head+body;
   }
   function renderPanels(s){
     if(!s)return;
-    const ids=mode==='local'?[0,1]:[myId];
+    const ids=mode==='local'?[localCaptain]:[myId];
     for(const child of [...controls.children])if(!ids.includes(Number(child.dataset.player)))child.remove();
     ids.forEach(id=>{
       const p=s.players.find(x=>x.id===id);if(!p)return;
@@ -944,7 +975,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     clearTimeout(noticeTimeout);
     noticeTimeout=setTimeout(()=>box.classList.add('hidden'),1700);
   }
-  function renderGameState(s){if(!s)return;visibleGameState=s;
+  function renderGameState(s){if(!s)return;visibleGameState=s;$('battle').dataset.moveMode=s.movementMode||'manual';
     if(lastUiVersion!==s.version){lastUiVersion=s.version;renderPanels(s);renderFleet(s);showBattleNotice(s.notice);
       if(s.winner!==null&&s.players.every(p=>p.hp>0||(p.sinkAge||0)>=5))endMatch(s);else $('end-overlay').classList.add('hidden');updateSfx(s);
     }
@@ -979,10 +1010,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   function ellipse(x,y,rx,ry,c){ctx.beginPath();ctx.ellipse(x,y,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();}
   function poly(points,fill,stroke,width=1){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke();}}
   function tileCorners(c,r){return [PROJECT(c,r),PROJECT(c+1,r),PROJECT(c+1,r+1),PROJECT(c,r+1)].map(p=>[p.x,p.y]);}
-  function applyCamera(){ /* Fixed top-down view: whole checkerboard always visible. */ }
+  function applyCamera(){const scale=cameraScale();ctx.translate(W/2,H/2);ctx.scale(scale,scale);ctx.translate(-W/2,-H/2);}
   function worldEvent(evt){
     const rect=canvas.getBoundingClientRect();
-    return unproject((evt.clientX-rect.left)*W/rect.width,(evt.clientY-rect.top)*H/rect.height);
+    const factor=cameraScale();return unproject(((evt.clientX-rect.left)*W/rect.width-W/2)/factor+W/2,((evt.clientY-rect.top)*H/rect.height-H/2)/factor+H/2);
   }
   function wave(t){
     ctx.fillStyle=gradient(0,0,W,H,[[0,'#09253a'],[.52,'#174e68'],[1,'#072336']]);ctx.fillRect(0,0,W,H);
@@ -997,7 +1028,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     const left=ORIGIN_X,top=ORIGIN_Y,right=left+COLS*TILE,bottom=top+ROWS*TILE;
     // Crisp squares: no affine skew, parallelograms, perspective or trapezoid.
     ctx.fillStyle='#091e2c';ctx.fillRect(left-5,top-5,COLS*TILE+10,ROWS*TILE+10);
-    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(s?.movementMode!=='auto')for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
       const x=left+c*TILE,y=top+r*TILE;
       ctx.fillStyle=(c+r)%2===0?'#2e6277':'#173c51';
       ctx.fillRect(x,y,TILE,TILE);
@@ -1019,7 +1050,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     ctx.fillStyle='#ffccca';ctx.textAlign='right';ctx.fillText('RED',right-10,top+21);
     if(!s||s.winner!==null)return;
     for(const p of s.players){
-      if(!(p.stage==='armed'||p.defenseOpen))continue;
+      if(s.movementMode==='auto'||!(p.stage==='armed'||p.defenseOpen))continue;
       if((mode==='host'&&p.id!==0)||(mode==='guest'&&p.id!==myId))continue;
       for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){
         if(dc===0&&dr===0)continue;
@@ -1034,7 +1065,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     }
   }
   function ship(p,t){
-    const mid=PROJECT(p.col+.5,p.row+.5),face=p.team===0?1:-1,sc=TILE/100;
+    const place=position(p),mid=PROJECT(place.x,place.y),face=p.team===0?1:-1,sc=TILE/100;
     const paint=cleanProfile(p.profile,p.id).colors,base=paint.body,light=paint.lining,dark=darken(paint.body,.43);
     // Destroyed ships break into debris, settle for 3 seconds, sink over 2,
     // and are completely removed after a total of 5 seconds.
@@ -1179,10 +1210,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     const s=getGameState();if(!s||s.winner!==null)return;
     const {c,r}=worldEvent(e),col=Math.floor(c),row=Math.floor(r);
     if(col<0||col>=COLS||row<0||row>=ROWS)return;
-    const ids=mode==='local'?[0,1]:[myId];
+    const ids=mode==='local'?[localCaptain]:[myId];
     // One adjacent tile per tap, including diagonals.
     for(const id of ids){const p=s.players.find(q=>q.id===id);if(!p||p.hp<=0)continue;
-      if((p.stage==='armed'||p.defenseOpen)&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
+      if(s.movementMode!=='auto'&&(p.stage==='armed'||p.defenseOpen)&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
         doAction(id,'move',{col,row});tone(460,.05,'sine',.024);return;
       }
     }
@@ -1191,8 +1222,17 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   });
   function frame(ts){requestAnimationFrame(frame);
     const dt=lastFrame?(ts-lastFrame)/1000:0;lastFrame=ts;
+    if(mode==='guest'&&remoteState){
+      for(const p of remoteState.players){
+        const targetX=p.x??p.col+.5,targetY=p.y??p.row+.5;
+        const v=guestVisual.get(p.id)||{x:targetX,y:targetY};guestVisual.set(p.id,v);
+        const alpha=1-Math.exp(-Math.min(dt,.1)*13);
+        if(Math.hypot(v.x-targetX,v.y-targetY)>3){v.x=targetX;v.y=targetY;}
+        else{v.x+=(targetX-v.x)*alpha;v.y+=(targetY-v.y)*alpha;}
+      }
+    }
     if((mode==='local'||mode==='host')&&engine){engine.tick(dt);const s=engine.publicState();renderGameState(s);
-      if(mode==='host'&&connections.size&&(s.version!==lastSentVersion||s.projectiles.length>0||s.airstrikes.length>0||s.effects.length>0||s.players.some(p=>p.hp<=0&&p.sinkAge<5))&&ts-lastSent>80)sendState();}
+      if(mode==='host'&&connections.size&&(s.movementMode==='auto'||s.version!==lastSentVersion||s.projectiles.length>0||s.airstrikes.length>0||s.effects.length>0||s.players.some(p=>p.hp<=0&&p.sinkAge<5))&&ts-lastSent>80)sendState();}
     drawScene(visibleGameState,ts);
   }
   requestAnimationFrame(frame);
@@ -1208,7 +1248,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   $('cancel-wait').addEventListener('click',resetToLobby);
   $('menu-btn').addEventListener('click',()=>{if(window.confirm('Leave the current match?'))resetToLobby();});
   $('end-menu-btn').addEventListener('click',resetToLobby);
-  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){audio.start();engine=new Game(roster,true,roomProfiles);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
+  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='host'){audio.start();engine=new Game(roster,true,roomProfiles,$('movement-mode').value);lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
   function roomInviteUrl(){
     // Always share the hosted web app, not an Android appassets:// offline URL.
     // This exact URL works on iOS Safari, Android Chrome and desktop browsers.
