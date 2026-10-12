@@ -513,10 +513,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     }
     return {id:questionCounter,kind:'choice',text,answer:String(answer),options:mathChoiceOptions(answer),subject:'Mathematics',level:'Primary • Easy'};
   }
-  function makePlayer(id,team,col,row,profile){return {id,team,col,row,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
-    constructor(ids=[0,1],online=false,profiles=null){
-      this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
+    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual'){
+      this.movementMode=movementMode==='auto'?'auto':'manual';this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
@@ -526,6 +526,46 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       this.winner=null;this.version=1;this.eventId=1;this.notice='';
       this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};
       this.missStreak=[0,0]; // Consecutive missed volleys by each opposing TEAM.
+    }
+    // The host owns the continuous physics. Clients render interpolated snapshots.
+    checkPickup(p){
+      const item=this.pickups.find(q=>q.owner===p.id&&Math.hypot((p.x??p.col+.5)-(q.col+.5),(p.y??p.row+.5)-(q.row+.5))<.48);
+      if(!item)return;
+      p.stock.airstrike=1;p.ammo='airstrike';this.pickups=this.pickups.filter(q=>q!==item);
+      this.changed(`📻 ${p.profile.name} collected an airstrike radio!`);
+    }
+    moveAuto(dt){
+      if(this.movementMode!=='auto'||this.winner!==null||dt<=0)return;
+      const speed=.78; // 0.78 tiles per second; fast enough to evade, slow enough to aim.
+      for(const p of this.players){
+        if(p.hp<=0)continue;
+        const xmin=p.team===0?.65:SPLIT+.65;
+        const xmax=p.team===0?SPLIT-.65:COLS-.65;
+        const ymin=.65,ymax=ROWS-.65;
+        let target=p.autoTarget;
+        if(!target||Math.hypot(target.x-p.x,target.y-p.y)<.34){
+          target={x:xmin+Math.random()*(xmax-xmin),y:ymin+Math.random()*(ymax-ymin)};
+          p.autoTarget=target;
+        }
+        let dx=target.x-p.x,dy=target.y-p.y;
+        let magnitude=Math.hypot(dx,dy)||1;dx/=magnitude;dy/=magnitude;
+        // Gentle repulsion prevents same-team ships from overlapping.
+        for(const other of this.players){
+          if(other===p||other.hp<=0||other.team!==p.team)continue;
+          const ox=p.x-other.x,oy=p.y-other.y,dist=Math.hypot(ox,oy);
+          if(dist>.0001&&dist<1.05){const push=(1.05-dist)*2.3;dx+=ox/dist*push;dy+=oy/dist*push;}
+        }
+        magnitude=Math.hypot(dx,dy)||1;
+        const ease=1-Math.exp(-dt*2.2);
+        p.vx+=(dx/magnitude*speed-p.vx)*ease;
+        p.vy+=(dy/magnitude*speed-p.vy)*ease;
+        p.x=CLAMP(p.x+p.vx*dt,xmin,xmax);
+        p.y=CLAMP(p.y+p.vy*dt,ymin,ymax);
+        // Keep the integer tile index for compatibility with existing match data.
+        p.col=CLAMP(Math.floor(p.x),p.team===0?0:SPLIT,p.team===0?SPLIT-1:COLS-1);
+        p.row=CLAMP(Math.floor(p.y),0,ROWS-1);
+        this.checkPickup(p);
+      }
     }
     player(id){return this.players.find(p=>p.id===id);}
     setProfile(id,profile){const p=this.player(id);if(!p)return;p.profile=cleanProfile(profile,id);this.changed();}
@@ -560,15 +600,13 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     act(id,type,value){
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0)return;
       if(type==='move'){
-        if(!(p.stage==='armed'||p.defenseOpen))return;
+        if(this.movementMode==='auto'||!(p.stage==='armed'||p.defenseOpen))return;
         if(!value||!Number.isInteger(value.col)||!Number.isInteger(value.row))return;
         const col=value.col,row=value.row;
         if(!within(p.team,col,row)||Math.max(Math.abs(col-p.col),Math.abs(row-p.row))!==1)return;
         if(this.players.some(q=>q.hp>0&&q.id!==id&&q.col===col&&q.row===row))return;
-        p.col=col;p.row=row;
-        const drop=this.pickups.find(x=>x.owner===p.id&&x.col===col&&x.row===row);
-        if(drop){p.stock.airstrike=1;p.ammo='airstrike';this.pickups=this.pickups.filter(x=>x!==drop);this.changed(`📻 ${p.profile.name} ready to call an airstrike!`);}
-        else this.changed();
+        p.col=col;p.row=row;p.x=col+.5;p.y=row+.5;
+        this.checkPickup(p);this.changed();
         return;
       }
       if(type==='aim'){if(p.stage!=='armed'||!Number.isFinite(Number(value)))return;p.angle=((Math.round(Number(value))%360)+360)%360;}
@@ -583,14 +621,14 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     projectile(p,kind,angle,volley,offset=0,targetId=null,origin=null){
       // Clockwise compass: 0 up, 90 right, 180 down, 270 left.
       const rad=(angle+offset)*Math.PI/180,dx=Math.sin(rad),dy=-Math.cos(rad),speed=SPEED[kind];
-      const x=origin?.x??(p.col+.5+dx*.46),y=origin?.y??(p.row+.5+dy*.46);
+      const x=origin?.x??(p.x+dx*.46),y=origin?.y??(p.y+dy*.46);
       this.projectiles.push({id:++this.currentProjectileId,volley,owner:p.id,team:p.team,type:kind,
         x,y,ox:x,oy:y,vx:dx*speed,vy:dy*speed,damage:AMMO[kind].damage,
         age:0,delay:0,homing:kind==='airstrike'&&targetId!==null,targetId});
     }
     closestEnemy(p){
       const enemies=this.enemy(p.team);if(!enemies.length)return null;
-      const anchor=p.target||{col:p.col,row:p.row};
+      const anchor=p.target||{col:p.x-.5,row:p.y-.5};
       return enemies.reduce((best,q)=>!best||Math.hypot(q.col-anchor.col,q.row-anchor.row)<Math.hypot(best.col-anchor.col,best.row-anchor.row)?q:best,null);
     }
     fire(id){
@@ -599,7 +637,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       if(ammo==='repair'){
         const gained=Math.min(5,MAX_HP-p.hp);
         p.hp=Math.min(MAX_HP,p.hp+5);p.repairs++;
-        this.effects.push({type:'repair',x:p.col+.5,y:p.row+.5,age:0,life:2.2});
+        this.effects.push({type:'repair',x:p.x,y:p.y,age:0,life:2.2});
         p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
         this.changed(`${p.profile.name} repaired ${gained} HP!`);
         return;
@@ -644,6 +682,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
         if(p.sinkAge>=5)this.changed(); // Send final animation frame to guests.
       }
       if(this.winner!==null)return;
+      this.moveAuto(dt);
       const ended=new Set(),remove=new Set();
       for(const plane of this.airstrikes){
         plane.age+=dt;
@@ -666,7 +705,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       for(const b of this.projectiles){
         if(b.delay>0){b.delay-=dt;continue;}b.age+=dt;
         if(b.homing){const target=this.player(b.targetId);if(target?.hp>0){
-          const ax=target.col+.5-b.x,ay=target.row+.5-b.y;
+          const ax=target.x-b.x,ay=target.y-b.y;
           const norm=Math.hypot(ax,ay)||1;
           const vx=b.vx*.25+ax/norm*SPEED.airstrike*.75,vy=b.vy*.25+ay/norm*SPEED.airstrike*.75;
           const mag=Math.hypot(vx,vy)||1;b.vx=vx/mag*SPEED.airstrike;b.vy=vy/mag*SPEED.airstrike;
@@ -675,7 +714,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
         for(let i=0;i<steps;i++){
           b.x+=b.vx*dt/steps;b.y+=b.vy*dt/steps;
           const targets=b.homing?this.enemy(b.team).filter(q=>q.id===b.targetId):this.enemy(b.team);
-          const target=targets.find(q=>Math.hypot(b.x-q.col-.5,b.y-q.row-.5)<.50);
+          const target=targets.find(q=>Math.hypot(b.x-q.x,b.y-q.y)<.50);
           if(target){this.impact(b,target);remove.add(b.id);ended.add(b.volley);break;}
         }
         if(this.winner!==null)break;
@@ -698,14 +737,14 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
             this.spawnRadio(1-attacker.team);
           }
         }
-        if(attacker.lastVolley===volley&&!this.projectiles.some(b=>b.team===attacker.team)){
+        if(this.movementMode==='manual'&&attacker.lastVolley===volley&&!this.projectiles.some(b=>b.team===attacker.team)){
           for(const defender of this.enemy(attacker.team))if(!defender.defenseOpen)defender.defenseOpen=true;
           this.changed();
         }
         delete this.volleyOwners[volley];
       }
     }
-    publicState(){return {online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    publicState(){return {movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null;
