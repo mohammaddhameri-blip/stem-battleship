@@ -366,8 +366,8 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   const W=1200,H=640,MAX_HP=150,MAX_PLAYERS=6;
   const SPEED={shell:6.5,flak:6.7,torpedo:5.2,airstrike:6.4};
   // One shadow crosses in two seconds. The missile arrives 1.5 seconds
-  // after flyover. Smoke lasts two seconds AFTER missile impact.
-  const B2_PASS_AT=1.3,B2_SHADOW_END=2,B2_MISSILE_LAUNCH=2.8;
+  // after flyover (including the 0.18 s flight). Smoke lasts two seconds AFTER impact.
+  const B2_PASS_AT=1.3,B2_SHADOW_END=2,B2_MISSILE_LAUNCH=2.62;
   const B2_MISSILE_FLIGHT=.18,B2_SMOKE_LIFE=2;
   // Grid expands from 10x6 (1v1) to 14x8 (2v2) to 18x10 (3v3).
   let COLS=10,ROWS=6,SPLIT=5,TILE=100,ORIGIN_X=100,ORIGIN_Y=20;
