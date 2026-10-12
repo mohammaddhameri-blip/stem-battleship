@@ -2,9 +2,9 @@
  * Only cache same-origin static assets. Never cache signaling/data channels.
  * Network-first HTML ensures new code arrives on the next visit; offline fallback
  * permits same-device play with the 238 fixed multiple-choice questions,
- * generated multiple-choice Maths, and original audio.
+ * generated multiple-choice Maths, the restored aiming slider, and original audio.
  */
-const CACHE='steam-battleship-shell-v2.2.0';
+const CACHE='steam-battleship-shell-v2.3.0';
 const SHELL=['./','./index.html','./audio-engine.js','./manifest.webmanifest','./icons/steam-battleship.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>Promise.all(
