@@ -1,10 +1,10 @@
 /* STEAM Battleship PWA — same local game as the Android APK.
  * Only cache same-origin static assets. Never cache signaling/data channels.
  * Network-first HTML ensures new code arrives on the next visit; offline fallback
- * permits same-device play and keeps the 325-question bank and original audio.
+ * permits same-device play with the 238 fixed multiple-choice questions,\n * generated multiple-choice Maths, and original audio.
  */
-const CACHE='steam-battleship-shell-v2.1.0';
-const SHELL=['./','./index.html','./audio-engine.js','./rbt-questions.js','./manifest.webmanifest','./icons/steam-battleship.svg','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE='steam-battleship-shell-v2.2.0';
+const SHELL=['./','./index.html','./audio-engine.js','./manifest.webmanifest','./icons/steam-battleship.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>Promise.all(
     SHELL.map(path=>cache.add(path).catch(()=>undefined))
