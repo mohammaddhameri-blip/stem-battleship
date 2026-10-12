@@ -214,6 +214,70 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
 }
 @media(max-width:360px){.quiz-options{grid-template-columns:1fr}.weapon-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+/* Classroom Fit Screen • use the viewport rather than allowing the battlefield to push controls below it. */
+.movement-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;background:#071f30;border:1px solid #38647a;border-radius:10px;padding:10px 12px}
+.movement-choice label{font-weight:900;letter-spacing:.7px;color:#c2e7ea;font-size:11px}
+.movement-choice select{max-width:65%;background:#123b50;color:#e6ffff;border:1px solid #57968f;border-radius:8px;padding:10px;font-size:12px;font-weight:800}
+.zoom-controls{position:absolute;z-index:2;top:5px;right:5px;display:flex;gap:3px;padding:3px;background:#092034e8;border:1px solid #5685999c;border-radius:9px}
+.zoom-controls button{border:0;background:#194457;color:#e4fffc;border-radius:6px;min-width:32px;min-height:28px;padding:4px 6px;font-weight:900;font-size:12px}
+.zoom-controls #zoom-fit{min-width:73px}
+.captain-switch{display:flex;gap:4px;justify-content:center;min-height:29px}
+.captain-switch button{border:1px solid #48728a;border-radius:8px;background:#122e42;color:#abc4d5;font-size:11px;font-weight:900;padding:4px 12px}
+.captain-switch button.active{background:#2a777f;color:#eafffa;border-color:#62e7da}
+.app-shell:has(#battle:not(.hidden)){height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.app-shell:has(#battle:not(.hidden)) main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.app-shell:has(#battle:not(.hidden)) .topbar{flex:none;padding-top:max(5px,env(safe-area-inset-top));padding-bottom:4px;min-height:43px}
+#battle:not(.hidden){flex:1;min-height:0;min-width:0;width:100%;height:100%;padding:3px max(6px,env(safe-area-inset-left)) max(5px,env(safe-area-inset-bottom));display:grid;grid-template-rows:auto auto auto minmax(0,1fr) minmax(0,1fr);gap:4px;overflow:hidden}
+#battle .battle-heading{min-height:0;margin:0;padding:0}
+#battle .scoreboard{min-height:0;margin:0;gap:6px}
+#battle .ship-hp{font-size:clamp(9px,1.1vw,12px)}
+#battle .ship-hp .hp-small{width:clamp(18px,4vw,52px)}
+#battle .sea-frame{height:100%;min-height:0;min-width:0;width:100%;margin:0;display:flex;justify-content:center;align-items:center;position:relative;overflow:hidden}
+#battle #battle-canvas{display:block;aspect-ratio:1200/640;width:auto;height:auto;max-width:100%;max-height:100%;flex:none;object-fit:contain}
+#battle .controls-grid{display:block;min-height:0;height:100%;min-width:0;margin:0;overflow:hidden}
+#battle .control-panel{width:100%;height:100%;display:flex;flex-direction:column;min-height:0;overflow:hidden;margin:0}
+#battle .console-top{flex:none;padding:4px 10px;min-height:28px}
+#battle .console-name{font-size:clamp(10px,1.4vw,13px)}
+#battle .console-state{font-size:10px}
+#battle .console-body{min-height:0;flex:1;padding:6px 8px;overflow:hidden}
+#battle .console-body:has(.quiz-options){display:grid;grid-template-rows:minmax(0,2fr) minmax(0,3fr);gap:4px}
+#battle .question-text{margin:0;min-height:0;align-self:center;font-size:clamp(12px,1.8vw,20px);line-height:1.18;overflow:auto;max-height:100%}
+#battle .quiz-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:5px;min-height:0;overflow:hidden}
+#battle .quiz-option{height:100%;min-height:0;display:flex;align-items:center;justify-content:center;font-size:clamp(11px,1.55vw,17px);padding:3px 7px;line-height:1.15;white-space:normal;overflow-wrap:anywhere}
+#battle .armed-body{display:grid;grid-template-rows:minmax(0,.65fr) minmax(0,1.35fr);gap:5px}
+#battle .armed-body .control-box{min-height:0;margin:0;padding:4px 8px}
+#battle .aim-row{padding:0;gap:8px}
+#battle .aim-slider{height:25px;min-height:25px}
+#battle .aim-ticks{font-size:9px}
+#battle .aim-value{font-size:clamp(13px,2vw,21px)}
+#battle .box-label{margin:0 0 2px;font-size:9px}
+#battle .combat-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(86px,1fr);gap:6px;min-height:0}
+#battle .weapon-grid,#battle .weapon-grid:has(.weapon-btn:nth-child(5)){height:100%;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:5px}
+#battle .weapon-grid:has(.weapon-btn:nth-child(5)){grid-template-rows:repeat(3,minmax(0,1fr))}
+#battle .weapon-grid:has(.weapon-btn:nth-child(5)) .weapon-btn:last-child{grid-column:span 2}
+#battle .weapon-btn{min-height:0;height:100%;padding:3px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#battle .weapon-btn .weapon-title{font-size:clamp(9px,1.25vw,14px)}
+#battle .weapon-btn .weapon-desc{font-size:clamp(8px,1.1vw,12px);margin:1px 0 0}
+#battle .fire-btn{height:100%;min-height:0;margin:0;padding:5px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:clamp(13px,2vw,21px);letter-spacing:.8px}
+@media(max-width:760px){
+ #battle .quiz-option{font-size:clamp(11px,3vw,15px)}
+ #battle .question-text{font-size:clamp(12px,3vw,17px)}
+ #battle .weapon-btn .weapon-title{font-size:clamp(9px,2.4vw,12px)}
+ #battle .weapon-btn .weapon-desc{font-size:clamp(8px,2.2vw,10px)}
+ #battle .fire-btn{font-size:clamp(12px,4vw,17px)}
+ #battle .ship-hp{font-size:9px}
+}
+@media(max-height:620px){
+ #battle:not(.hidden){gap:2px;grid-template-rows:0 auto auto minmax(0,1fr) minmax(0,1fr)}
+ #battle .battle-heading{overflow:hidden}
+ #battle .console-top{min-height:22px;padding:2px 7px}
+ #battle .console-body{padding:4px}
+ #battle .question-text{font-size:clamp(11px,1.65vw,16px)}
+ #battle .weapon-btn{padding:2px}
+ #battle .weapon-grid{gap:3px}
+}
+
 </style>
 </head>
 <body>
@@ -241,7 +305,8 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   <div class="workshop-preview-pane"><div class="workshop-pane-head"><span>VESSEL PREVIEW</span><span id="bay-id">CAPTAIN 1</span></div>
     <canvas id="ship-preview" width="720" height="360" aria-label="Live preview of your ship design"></canvas>
     <div class="preview-name" id="preview-ship-name">P1 VANGUARD</div>
-    <div class="workshop-play">
+    <div class="movement-choice"><label for="movement-mode">SHIP MOVEMENT</label><select id="movement-mode" aria-label="Ship movement mode"><option value="auto" selected> AUTO · Smooth sailing </option><option value="manual"> MANUAL · Tap to dodge </option></select></div>
+<div class="workshop-play">
       <button class="mode-card" id="local-btn" type="button"><span class="mode-icon">▣</span><span class="mode-title">SAME DEVICE</span></button>
       <button class="mode-card" id="online-btn" type="button"><span class="mode-icon">◎</span><span class="mode-title">ONLINE</span></button>
     </div>
@@ -278,7 +343,8 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
 <section class="battle hidden" id="battle">
 <div class="battle-heading"><div></div><div class="battle-metrics"><span class="room-chip hidden" id="room-chip">ROOM ------</span></div></div>
 <div class="scoreboard"><div class="fleet fleet-one" id="fleet-blue"></div><div class="score-vs">⚔</div><div class="fleet fleet-two" id="fleet-red"></div></div>
-<div class="sea-frame"><canvas aria-label="Flat checkerboard battlefield for up to six ships" height="640" id="battle-canvas" width="1200">A modern browser is required to display the battlefield.</canvas><div aria-live="polite" class="battle-notice hidden" id="battle-notice" role="status"></div></div>
+<div class="captain-switch hidden" id="captain-switch" role="group" aria-label="Local player controls"><button type="button" class="active" data-captain="0">P1 · BLUE</button><button type="button" data-captain="1">P2 · RED</button></div>
+<div class="sea-frame"><canvas aria-label="Battleship battlefield for up to six ships" height="640" id="battle-canvas" width="1200">A modern browser is required to display the battlefield.</canvas><div class="zoom-controls" role="group" aria-label="Battlefield zoom"><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-fit" title="Fit entire battlefield" aria-label="Fit battlefield to screen">FIT · 50%</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></div><div aria-live="polite" class="battle-notice hidden" id="battle-notice" role="status"></div></div>
 
 <div class="controls-grid" id="controls"></div>
 
@@ -287,7 +353,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
 
 </div>
 <div aria-labelledby="winner-heading" aria-modal="true" class="end-overlay hidden" id="end-overlay" role="dialog"><div class="end-card"><div class="eyebrow">MATCH COMPLETE</div><div class="end-symbol">⚓</div><h2 id="winner-heading">VICTORY</h2><p id="end-reason"></p><div class="end-stats" id="end-stats"></div><button class="primary-btn" id="rematch-btn">PLAY AGAIN</button><button class="back-link" id="end-menu-btn">MENU</button></div></div>
-<div aria-label="How to play" aria-modal="true" class="help-overlay hidden" id="help-overlay" role="dialog"><div class="help-card"><div class="help-heading"><strong>HOW TO PLAY</strong><button aria-label="Close help" class="icon-btn" id="close-help" type="button">✕</button></div><div class="help-step"><b>1</b><span>ANSWER a question.</span></div><div class="help-step"><b>2</b><span>TAP an adjacent square · AIM · EQUIP.</span></div><div class="help-step"><b>3</b><span>FIRE or REPAIR. Either ends the attack cycle.</span></div><p>After an incoming shot resolves, defensive tile movement is free until the opponent fires again.</p><p>Wrong answers cause random shots. Wrong answers send shots in random directions. Repair restores 35 HP. Torpedo requires three consecutive correct answers.</p><p>Online: up to 3v3. When the other team misses five consecutive volleys, a radio appears on your side. Collect it to call a B-2 airstrike (35 damage). Tap an enemy to select a target.</p></div></div><script src="rbt-questions.js"></script>
+<div aria-label="How to play" aria-modal="true" class="help-overlay hidden" id="help-overlay" role="dialog"><div class="help-card"><div class="help-heading"><strong>HOW TO PLAY</strong><button aria-label="Close help" class="icon-btn" id="close-help" type="button">✕</button></div><div class="help-step"><b>1</b><span>Answer one four-choice question.</span></div><div class="help-step"><b>2</b><span>Adjust aim, choose ammunition, then fire once.</span></div><div class="help-step"><b>3</b><span>Repeat for each shot. Wrong answers use a random firing angle.</span></div><p>Host chooses AUTO (ships glide by themselves) or MANUAL (tap adjacent tiles to evade). Ships stay in their team's half. Flak fires three rounds at 5 damage each. Repair restores 5 HP and ends the turn.</p><p>The FIT button shows the entire board. Host controls online match positions. A collected radio unlocks a 35-damage airstrike.</p></div></div>
 <script src="audio-engine.js"></script>
 <script>
 
@@ -373,9 +439,9 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
 
   const AMMO={
     shell:{name:'SHELL',short:'SHELL',damage:10,min:0,stock:Infinity,hint:'10 DMG'},
-    flak:{name:'FLAK',short:'FLAK',damage:5,min:0,stock:3,hint:'3 × 5'},
-    torpedo:{name:'TORPEDO',short:'TORPEDO',damage:50,min:3,stock:3,hint:'50 DMG'},
-    repair:{name:'REPAIR',short:'REPAIR',damage:0,min:0,stock:Infinity,hint:'+35 HP'},
+    flak:{name:'FLAK',short:'FLAK',damage:5,min:0,stock:3,hint:'3 × 5 DMG'},
+    torpedo:{name:'TORPEDO',short:'TORPEDO',damage:20,min:3,stock:3,hint:'20 DMG'},
+    repair:{name:'REPAIR',short:'REPAIR',damage:0,min:0,stock:Infinity,hint:'+5 HP'},
     airstrike:{name:'AIRSTRIKE',short:'AIRSTRIKE',damage:35,min:0,stock:1,hint:'B-2 · 35 DMG'}
   };
   const SCIENCE = [
@@ -531,8 +597,8 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0||p.stage!=='armed')return;
       const ammo=this.canUse(p,p.ammo)?p.ammo:'shell';
       if(ammo==='repair'){
-        const gained=Math.min(35,MAX_HP-p.hp);
-        p.hp=Math.min(MAX_HP,p.hp+35);p.repairs++;
+        const gained=Math.min(5,MAX_HP-p.hp);
+        p.hp=Math.min(MAX_HP,p.hp+5);p.repairs++;
         this.effects.push({type:'repair',x:p.col+.5,y:p.row+.5,age:0,life:2.2});
         p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
         this.changed(`${p.profile.name} repaired ${gained} HP!`);
@@ -771,7 +837,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   function weaponButton(p,key){
     const w=AMMO[key],unlocked=key==='airstrike'?p.stock.airstrike>0:p.streak>=w.min,stock=p.stock[key];
     const available=unlocked&&(stock===-1||stock>0);
-    const suffix=!unlocked?(key==='airstrike'?'📻':`🔒 ${p.streak}/${w.min}`):key==='repair'?'+35 HP':stock===-1?'∞':`×${stock}`;
+    const suffix=!unlocked?(key==='airstrike'?'📻':`🔒 ${p.streak}/${w.min}`):key==='repair'?'+5 HP':stock===-1?'∞':`×${stock}`;
     const title=`${w.name} — ${w.hint}${unlocked?'':key==='airstrike'?' — collect radio after 5 opposing misses':` — ${w.min} correct answers in a row`}`;
     return `<button type="button" class="weapon-btn ${p.ammo===key?'selected':''}" title="${esc(title)}" aria-label="${esc(title)}" data-action="equip" data-value="${key}" ${available?'':'disabled'} aria-pressed="${p.ammo===key}"><span class="weapon-title">${esc(w.short)}</span><span class="weapon-desc">${suffix}</span></button>`;
   }
@@ -1180,7 +1246,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.3-slider-aim',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.4-auto-manual-fit-screen',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
