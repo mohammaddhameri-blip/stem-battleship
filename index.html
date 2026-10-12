@@ -225,7 +225,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
 .captain-switch{display:flex;gap:4px;justify-content:center;min-height:29px}
 .captain-switch button{border:1px solid #48728a;border-radius:8px;background:#122e42;color:#abc4d5;font-size:11px;font-weight:900;padding:4px 12px}
 .captain-switch button.active{background:#2a777f;color:#eafffa;border-color:#62e7da}
-.app-shell:has(#battle:not(.hidden)){height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.app-shell:has(#battle:not(.hidden)){height:100dvh;min-height:0;max-width:100vw;width:100%;overflow:hidden;display:flex;flex-direction:column}
 .app-shell:has(#battle:not(.hidden)) main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .app-shell:has(#battle:not(.hidden)) .topbar{flex:none;padding-top:max(5px,env(safe-area-inset-top));padding-bottom:4px;min-height:43px}
 #battle:not(.hidden){flex:1;min-height:0;min-width:0;width:100%;height:100%;padding:3px max(6px,env(safe-area-inset-left)) max(5px,env(safe-area-inset-bottom));display:grid;grid-template-rows:auto auto auto minmax(0,1fr) minmax(0,1fr);gap:4px;overflow:hidden}
@@ -778,8 +778,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   $('zoom-out').addEventListener('click',()=>updateZoom(zoomPercent-10));
   $('zoom-in').addEventListener('click',()=>updateZoom(zoomPercent+10));
   $('zoom-fit').addEventListener('click',()=>{updateZoom(50);fitCanvas();});
-  const canvasObserver=new ResizeObserver(()=>fitCanvas());
-  canvasObserver.observe($('battle').querySelector('.sea-frame'));
+  if('ResizeObserver' in window){const canvasObserver=new ResizeObserver(()=>fitCanvas());canvasObserver.observe($('battle').querySelector('.sea-frame'));}
   window.addEventListener('resize',fitCanvas);
   if(window.visualViewport)window.visualViewport.addEventListener('resize',fitCanvas);
   $('captain-switch').addEventListener('click',e=>{
@@ -825,7 +824,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
   function resetToLobby(){audio.stop();destroyPeer();localCaptain=0;guestVisual.clear();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
-    mode=kind;localCaptain=0;guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value):null;
+    mode=kind;localCaptain=0;$('captain-switch').querySelectorAll('[data-captain]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captain)===0));guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');$('room-chip').classList.toggle('hidden',kind==='local');$('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'LOCAL':`P${myId+1} · ONLINE`;
@@ -907,7 +906,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   function weaponButton(p,key){
     const w=AMMO[key],unlocked=key==='airstrike'?p.stock.airstrike>0:p.streak>=w.min,stock=p.stock[key];
     const available=unlocked&&(stock===-1||stock>0);
-    const suffix=!unlocked?(key==='airstrike'?'📻':`🔒 ${p.streak}/${w.min}`):key==='repair'?'+5 HP':stock===-1?'∞':`×${stock}`;
+    const suffix=!unlocked?(key==='airstrike'?'📻 AIRSTRIKE':`🔒 ${w.hint}`):key==='flak'?'5 DMG':w.hint;
     const title=`${w.name} — ${w.hint}${unlocked?'':key==='airstrike'?' — collect radio after 5 opposing misses':` — ${w.min} correct answers in a row`}`;
     return `<button type="button" class="weapon-btn ${p.ammo===key?'selected':''}" title="${esc(title)}" aria-label="${esc(title)}" data-action="equip" data-value="${key}" ${available?'':'disabled'} aria-pressed="${p.ammo===key}"><span class="weapon-title">${esc(w.short)}</span><span class="weapon-desc">${suffix}</span></button>`;
   }
@@ -1028,6 +1027,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     const left=ORIGIN_X,top=ORIGIN_Y,right=left+COLS*TILE,bottom=top+ROWS*TILE;
     // Crisp squares: no affine skew, parallelograms, perspective or trapezoid.
     ctx.fillStyle='#091e2c';ctx.fillRect(left-5,top-5,COLS*TILE+10,ROWS*TILE+10);
+    if(s?.movementMode==='auto'){ctx.fillStyle='rgba(34,113,139,.55)';ctx.fillRect(left,top,COLS*TILE,ROWS*TILE);}
     if(s?.movementMode!=='auto')for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
       const x=left+c*TILE,y=top+r*TILE;
       ctx.fillStyle=(c+r)%2===0?'#2e6277':'#173c51';
