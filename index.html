@@ -365,6 +365,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   const $ = id => document.getElementById(id);
   const W=1200,H=640,MAX_HP=150,MAX_PLAYERS=6;
   const SPEED={shell:6.5,flak:6.7,torpedo:5.2,airstrike:6.4};
+  // One shadow crosses in two seconds. The missile arrives 1.5 seconds
+  // after flyover. Smoke lasts two seconds AFTER missile impact.
+  const B2_PASS_AT=1.3,B2_SHADOW_END=2,B2_MISSILE_LAUNCH=2.8;
+  const B2_MISSILE_FLIGHT=.18,B2_SMOKE_LIFE=2;
   // Grid expands from 10x6 (1v1) to 14x8 (2v2) to 18x10 (3v3).
   let COLS=10,ROWS=6,SPLIT=5,TILE=100,ORIGIN_X=100,ORIGIN_Y=20;
   function setBoard(n){const size=n<=1?[10,6]:n===2?[14,8]:[18,10];COLS=size[0];ROWS=size[1];SPLIT=COLS/2;TILE=Math.min((W-52)/COLS,(H-36)/ROWS);ORIGIN_X=(W-COLS*TILE)/2;ORIGIN_Y=(H-ROWS*TILE)/2;}
@@ -648,11 +652,16 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       for(const enemy of this.enemy(p.team))enemy.defenseOpen=false;
       if(ammo==='flak')[-15,0,15].forEach(d=>this.projectile(p,'flak',angle,volley,d));
       else if(ammo==='airstrike'){
-        const target=p.lastCorrect?this.closestEnemy(p):null;
-        const aimCol=target?.col??rnd(p.team===0?SPLIT:0,p.team===0?COLS-1:SPLIT-1);
-        const aimRow=target?.row??rnd(0,ROWS-1);
-        this.airstrikes.push({owner:id,team:p.team,volley,targetId:target?.id??null,
-          aimCol,aimRow,age:0,dropped:false});
+        // The airstrike finds an opposing ship even after a wrong answer.
+        const target=this.closestEnemy(p);
+        if(target)this.airstrikes.push({
+          owner:id,team:p.team,volley,targetId:target.id,
+          age:0,dropped:false,missileHit:false,
+          startX:p.team===0?-1.9:COLS+1.9,
+          endX:p.team===0?COLS+1.85:-1.85,startY:p.y,
+          shadowX:p.team===0?-1.9:COLS+1.9,shadowY:p.y,heading:0,
+          passX:null,passY:null,impactX:null,impactY:null,impactAge:null
+        });
       }else this.projectile(p,ammo,angle,volley);
       p.shots++;p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
       if(!this.canUse(p,p.ammo))p.ammo='shell';
@@ -661,9 +670,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     impact(b,target){
       const inflicted=Math.min(target.hp,b.damage);target.hp=Math.max(0,target.hp-b.damage);this.player(b.owner).hits++;
       if(this.volleyOwners[b.volley])this.volleyOwners[b.volley].hit=true;
-      this.effects.push({type:'boom',x:b.x,y:b.y,age:0,life:.65,size:.7});
+      this.effects.push({type:'boom',x:b.x,y:b.y,age:0,life:b.type==='airstrike'?1.25:.65,size:b.type==='airstrike'?2.0:.7});
+      if(b.type==='airstrike')this.effects.push({type:'airstrike-ring',x:b.x,y:b.y,age:0,life:1.15,size:2.4});
       if(target.hp===0){target.stage='sunk';target.sinkAge=0;target.defenseOpen=false;this.pickups=this.pickups.filter(x=>x.owner!==target.id);
-        if(!this.alive(target.team).length&&this.winner===null){this.winner=1-target.team;this.projectiles=[];this.airstrikes=[];this.changed(`${this.winner===0?'Azure':'Crimson'} team wins!`);}
+        if(!this.alive(target.team).length&&this.winner===null){this.winner=1-target.team;this.projectiles=[];this.airstrikes=this.airstrikes.filter(a=>a.missileHit);this.changed(`${this.winner===0?'Azure':'Crimson'} team wins!`);}
         else this.changed(`${target.profile.name} destroyed!`);
       }else this.changed(`Direct hit! P${target.id+1} takes ${inflicted} damage.`);
     }
@@ -681,27 +691,67 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
         p.sinkAge=nextAge>=5-1e-6?5:nextAge>=3-1e-6&&nextAge<3?3:nextAge;
         if(p.sinkAge>=5)this.changed(); // Send final animation frame to guests.
       }
-      if(this.winner!==null)return;
+      if(this.winner!==null){
+        this.airstrikes=this.airstrikes.filter(a=>{
+          if(!a.missileHit||a.impactAge===null)return false;
+          a.age+=dt;return a.age<a.impactAge+B2_SMOKE_LIFE;
+        });
+        return;
+      }
       this.moveAuto(dt);
       const ended=new Set(),remove=new Set();
       for(const plane of this.airstrikes){
+        const oldX=plane.shadowX,oldY=plane.shadowY;
         plane.age+=dt;
-        if(!plane.dropped&&plane.age>=.95){
-          plane.dropped=true;
+        let target=this.player(plane.targetId);
+        if(!target||target.hp<=0){
           const owner=this.player(plane.owner);
-          if(owner){
-            const target=this.player(plane.targetId);
-            const x=plane.aimCol+.5;
-            const dropCenter=PROJECT(x,plane.aimRow+.5);
-            // Missile visibly separates from the bomber at the moment of release.
-            const y=(CLAMP(dropCenter.y-80,85,H-105)-ORIGIN_Y)/TILE;
-            // Only one missile. Correct answers guide it to a target;
-            // wrong answers drop it unguided, with a chance to hit.
-            this.projectile(owner,'airstrike',180,plane.volley,0,target?.hp>0?target.id:null,{x,y});
+          const survivors=owner?this.enemy(owner.team):[];
+          target=survivors.reduce((best,ship)=>!best||Math.hypot(ship.x-plane.shadowX,ship.y-plane.shadowY)<Math.hypot(best.x-plane.shadowX,best.y-plane.shadowY)?ship:best,null);
+          if(target)plane.targetId=target.id;
+        }
+        if(plane.age<=B2_SHADOW_END){
+          if(plane.passX===null){
+            const progress=CLAMP(plane.age/B2_PASS_AT,0,1);
+            // Acceleration continues through the first second and surges near flyover.
+            const advance=Math.pow(progress,2.65);
+            const tx=target?.x??(plane.team===0?SPLIT+1.5:SPLIT-1.5);
+            const ty=target?.y??plane.startY;
+            plane.shadowX=plane.startX+(tx-plane.startX)*advance;
+            plane.shadowY=plane.startY+(ty-plane.startY)*progress*progress*(3-2*progress);
+            if(plane.age>=B2_PASS_AT){
+              plane.passX=tx;plane.passY=ty;
+              plane.shadowX=tx;plane.shadowY=ty;
+            }
+          }else{
+            // Straight, decelerating exit with frozen direction and height.
+            const exit=CLAMP((plane.age-B2_PASS_AT)/(B2_SHADOW_END-B2_PASS_AT),0,1);
+            plane.shadowX=plane.passX+(plane.endX-plane.passX)*(1-Math.pow(1-exit,2.25));
+            plane.shadowY=plane.passY;
           }
+          if(dt>0&&plane.age<=B2_PASS_AT){
+            const slope=Math.atan2(plane.shadowY-oldY,Math.abs(plane.shadowX-oldX)||.001);
+            plane.heading+=CLAMP(slope-plane.heading,-dt*.9,dt*.9);
+          }else if(dt>0)plane.heading*=Math.exp(-dt*2);
+        }
+        // Host resolves the impact at the ship's CURRENT position, not
+        // the stale location where the shadow originally crossed.
+        if(!plane.missileHit&&plane.age>=B2_MISSILE_LAUNCH+B2_MISSILE_FLIGHT){
+          plane.missileHit=true;plane.dropped=true;plane.impactAge=plane.age;
+          if(target){
+            plane.impactX=target.x;plane.impactY=target.y;
+            this.impact({
+              owner:plane.owner,team:plane.team,volley:plane.volley,
+              type:'airstrike',damage:AMMO.airstrike.damage,x:target.x,y:target.y
+            },target);
+          }else{
+            plane.impactX=plane.passX??(plane.team===0?COLS-.5:.5);
+            plane.impactY=plane.passY??ROWS/2;
+          }
+          ended.add(plane.volley);
         }
       }
-      this.airstrikes=this.airstrikes.filter(a=>a.age<2.8);
+      this.airstrikes=this.airstrikes.filter(a=>!a.missileHit||a.age<a.impactAge+B2_SMOKE_LIFE);
       for(const b of this.projectiles){
         if(b.delay>0){b.delay-=dt;continue;}b.age+=dt;
         if(b.homing){const target=this.player(b.targetId);if(target?.hp>0){
@@ -1325,7 +1375,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.4-auto-manual-fit-screen',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.5-cinematic-b2-shadow',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
