@@ -797,7 +797,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     publicState(){return {movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
-  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,localCaptain=0,zoomPercent=50,guestVisual=new Map();
+  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,localCaptain=0,zoomPercent=50,guestVisual=new Map(),lastRemoteSnapshotTime=0;
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
   const show=key=>['lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
   // Royalty-free original procedural audio lives in audio-engine.js.
@@ -841,6 +841,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     const smooth=mode==='guest'?guestVisual.get(p.id):null;
     return {x:smooth?.x??p.x??p.col+.5,y:smooth?.y??p.y??p.row+.5};
   };
+  // Guests receive 80 ms snapshots. Extrapolate only up to 110 ms to avoid
+  // visible teleporting of the fast B-2 shadow and corner-launched missile.
+  const airstrikeDisplayAge=plane=>mode==='guest'&&lastRemoteSnapshotTime?
+    plane.age+CLAMP((performance.now()-lastRemoteSnapshotTime)/1000,0,.11):plane.age;
   function updateSfx(s){
     if(!s||s.eventId===lastSfxEvent)return;
     lastSfxEvent=s.eventId;
@@ -919,7 +923,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       else if(m.type==='roster'&&mode==='waiting'){roster=m.roster||roster;roomProfiles=m.profiles||roomProfiles;rosterView();}
       else if(m.type==='start'&&mode==='waiting'){beginGame('guest',m.players);$('battle').dataset.moveMode=m.movementMode==='auto'?'auto':'manual';c.send({type:'ready'});}
       else if(m.type==='state'&&['guest','guest-disconnected'].includes(mode)&&m.state?.players?.length>=2){
-        remoteState=m.state;setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));for(const p of remoteState.players)if(!guestVisual.has(p.id))guestVisual.set(p.id,{x:p.x??p.col+.5,y:p.y??p.row+.5});renderGameState(remoteState);
+        remoteState=m.state;lastRemoteSnapshotTime=performance.now();setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));for(const p of remoteState.players)if(!guestVisual.has(p.id))guestVisual.set(p.id,{x:p.x??p.col+.5,y:p.y??p.row+.5});renderGameState(remoteState);
       }
       else if(m.type==='reject'){networkError(new Error(m.reason||'Room rejected connection'));}
     });
@@ -1188,17 +1192,33 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     if(!s.airstrikes?.length)return;
     ctx.save();ctx.beginPath();ctx.rect(ORIGIN_X,ORIGIN_Y,COLS*TILE,ROWS*TILE);ctx.clip();
     for(const plane of s.airstrikes){
-      if(plane.age>=B2_SHADOW_END)continue;
-      const approaching=CLAMP(plane.age/B2_PASS_AT,0,1);
-      const departing=CLAMP((plane.age-B2_PASS_AT)/(B2_SHADOW_END-B2_PASS_AT),0,1);
+      const visualAge=airstrikeDisplayAge(plane);
+      if(visualAge>=B2_SHADOW_END)continue;
+      const approaching=CLAMP(visualAge/B2_PASS_AT,0,1);
+      const departing=CLAMP((visualAge-B2_PASS_AT)/(B2_SHADOW_END-B2_PASS_AT),0,1);
       const smoothIn=approaching*approaching*(3-2*approaching);
       const smoothOut=departing*departing*(3-2*departing);
       // Enter at roughly 3 x 4 tiles; peak at 4.2 x 5.7;
       // shrink down to less than 3 x 4 at the far boundary.
-      const scale=plane.age<=B2_PASS_AT?1+.42*smoothIn:1.42-1.10*smoothOut;
-      const at=PROJECT(plane.shadowX,plane.shadowY);
+      const scale=visualAge<=B2_PASS_AT?1+.42*smoothIn:1.42-1.10*smoothOut;
+      let sx=plane.shadowX,sy=plane.shadowY;
+      if(mode==='guest'){
+        const tracked=s.players.find(p=>p.id===plane.targetId);
+        const live=tracked?position(tracked):null;
+        const tx=live?.x??(plane.team===0?SPLIT+1.5:SPLIT-1.5);
+        const ty=live?.y??plane.startY;
+        if(visualAge<=B2_PASS_AT){
+          sx=plane.startX+(tx-plane.startX)*Math.pow(approaching,2.65);
+          sy=plane.startY+(ty-plane.startY)*smoothIn;
+        }else{
+          const px=plane.passX??tx;
+          sx=px+(plane.endX-px)*(1-Math.pow(1-departing,2.25));
+          sy=plane.passY??ty;
+        }
+      }
+      const at=PROJECT(sx,sy);
       const face=plane.team===0?1:-1;
-      const opacity=CLAMP(plane.age/.15,0,1)*CLAMP((B2_SHADOW_END-plane.age)/.24,0,1);
+      const opacity=CLAMP(visualAge/.15,0,1)*CLAMP((B2_SHADOW_END-visualAge)/.24,0,1);
       // A single continuous flying wing with sawtooth trailing edges.
       // Local X follows the eastward direction of flight; Y is wingspan.
       const wing=[
@@ -1222,7 +1242,8 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   }
   function paintAirstrikeMissiles(s){
     for(const plane of (s.airstrikes||[])){
-      if(plane.age<B2_MISSILE_LAUNCH)continue;
+      const visualAge=airstrikeDisplayAge(plane);
+      if(visualAge<B2_MISSILE_LAUNCH)continue;
       // Blue originates at the upper-left of the Blue territory;
       // Red originates at the upper-right of the Red territory.
       const launch=PROJECT(plane.team===0?.35:COLS-.35,.32);
@@ -1233,12 +1254,12 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
         plane.missileHit?plane.impactY:(live?.y??plane.passY??ROWS/2)
       );
       if(!Number.isFinite(end.x)||!Number.isFinite(end.y))continue;
-      const progress=CLAMP((plane.age-B2_MISSILE_LAUNCH)/B2_MISSILE_FLIGHT,0,1);
+      const progress=CLAMP((visualAge-B2_MISSILE_LAUNCH)/B2_MISSILE_FLIGHT,0,1);
       const travel=plane.missileHit?1:progress;
       const mx=launch.x+(end.x-launch.x)*travel;
       const my=launch.y+(end.y-launch.y)*travel;
       // Smoke persists for TWO seconds after the hit, not just during flight.
-      const fade=plane.missileHit?CLAMP(1-(plane.age-plane.impactAge)/B2_SMOKE_LIFE,0,1):1;
+      const fade=plane.missileHit?CLAMP(1-(visualAge-plane.impactAge)/B2_SMOKE_LIFE,0,1):1;
       if(fade<=0)continue;
       ctx.save();ctx.lineCap='round';
       ctx.strokeStyle='rgba(233,245,249,'+(.65*fade)+')';
