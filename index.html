@@ -148,19 +148,15 @@
 @media(max-width:850px){.workshop-grid{grid-template-columns:1fr}.lobby{padding:18px 12px 35px}.workshop-preview-pane,.workshop-editor{padding:15px}.workshop-play{margin-top:14px}.workshop-play .mode-card{min-height:63px}.paint-grid{grid-template-columns:1fr 1fr}.paint-part{font-size:11px}}
 @media(max-width:420px){.paint-grid{grid-template-columns:1fr}.workshop-play .mode-title{font-size:10px}.workshop-play .mode-icon{font-size:20px}}
 
-/* STEAM • circular cannon compass, not a linear slider */
+/* Compact horizontal aiming slider • 0° faces the opposing fleet */
 .brand-by{display:block;color:#96bdc6;font-size:9px;letter-spacing:.7px;font-weight:700;margin-top:3px}
-.bearing-row{display:flex;gap:21px;align-items:center;justify-content:center;padding:3px 0 8px}
-.bearing-dial{--bearing:90deg;width:134px;height:134px;border:3px solid #417488;border-radius:50%;position:relative;flex:none;cursor:grab;touch-action:none;user-select:none;outline:0;background:radial-gradient(circle at 47% 42%,#28617a,#0b273d 73%);box-shadow:inset 0 0 0 5px #0c1d30,0 3px 18px #0005}
-.bearing-dial:focus-visible{outline:2px solid var(--teal);outline-offset:4px}
-.bearing-dial:active{cursor:grabbing}
-.bearing-pointer{position:absolute;inset:0;transform:rotate(var(--bearing));pointer-events:none}
-.bearing-pointer:before{content:'';position:absolute;left:50%;top:9px;transform:translateX(-50%);width:5px;height:47px;background:linear-gradient(#fdd47a,#58f2e2);clip-path:polygon(50% 0%,100% 22%,100% 100%,0 100%,0 22%)}
-.bearing-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:37px;height:37px;background:#0b2334;border:2px solid #61c5cc;border-radius:50%;display:grid;place-items:center;color:#d1faff;font-size:16px}
-.bearing-dial span{position:absolute;color:#cae5ef;font-size:9px;font-weight:900;pointer-events:none}
-.bearing-n{top:-1px;left:50%;transform:translateX(-50%)}.bearing-e{top:50%;right:3px;transform:translateY(-50%)}.bearing-s{bottom:1px;left:50%;transform:translateX(-50%)}.bearing-w{top:50%;left:3px;transform:translateY(-50%)}
-.bearing-readout{display:flex;flex-direction:column;gap:8px;min-width:84px}.bearing-readout strong{font-size:28px;font-variant-numeric:tabular-nums;color:#67f1d8}.bearing-readout span{font-size:9px;font-weight:800;letter-spacing:1px;color:#97b8cb}
-@media(max-width:420px){.bearing-dial{width:112px;height:112px}.bearing-pointer:before{height:35px}.bearing-readout strong{font-size:23px}}
+.aim-row{display:flex;gap:14px;align-items:center;padding:2px 0 5px;min-width:0}
+.aim-track{flex:1;min-width:0}
+.aim-slider{display:block;width:100%;height:36px;min-height:36px;margin:0;cursor:pointer;accent-color:var(--teal);touch-action:pan-y}
+.aim-slider:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:8px}
+.aim-ticks{display:flex;justify-content:space-between;color:#95b6c8;font-size:10px;font-weight:800;padding:0 2px}
+.aim-value{flex:none;color:#67f1d8;font-size:22px;font-variant-numeric:tabular-nums;font-weight:900;min-width:58px;text-align:right}
+@media(max-width:420px){.aim-row{gap:9px}.aim-value{font-size:19px;min-width:51px}.aim-ticks{font-size:9px}}
 
 /* STEAM Battle Sound Studio: individual SFX and original-music controls */
 .topbar{position:relative}
@@ -779,8 +775,17 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     const title=`${w.name} — ${w.hint}${unlocked?'':key==='airstrike'?' — collect radio after 5 opposing misses':` — ${w.min} correct answers in a row`}`;
     return `<button type="button" class="weapon-btn ${p.ammo===key?'selected':''}" title="${esc(title)}" aria-label="${esc(title)}" data-action="equip" data-value="${key}" ${available?'':'disabled'} aria-pressed="${p.ammo===key}"><span class="weapon-title">${esc(w.short)}</span><span class="weapon-desc">${suffix}</span></button>`;
   }
-  function knobHTML(angle){
-    return `<div class="bearing-row"><div class="bearing-dial" data-bearing-knob role="slider" tabindex="0" aria-label="Cannon bearing" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${angle}" aria-valuetext="${angle} degrees" style="--bearing:${angle}deg"><i class="bearing-pointer"></i><b class="bearing-center">⚓</b><span class="bearing-n">0</span><span class="bearing-e">90</span><span class="bearing-s">180</span><span class="bearing-w">270</span></div><div class="bearing-readout"><strong data-angle-value>${angle}°</strong><span>DRAG TO TURN</span></div></div>`;
+  // Slider angle is relative to the opponent: 0° ahead, positive angles aim upwards.
+  // Battlefield projectiles still use absolute bearings: 90° east and 270° west.
+  const toBearing=(team,offset)=>((team===0?90-offset:270+offset)%360+360)%360;
+  const fromBearing=(team,angle)=>{
+    const value=team===0?90-angle:angle-270;
+    return Math.max(-80,Math.min(80,Math.round(((value+180)%360+360)%360-180)));
+  };
+  const aimLabel=angle=>`${angle>0?'+':''}${angle}°`;
+  function sliderHTML(p){
+    const angle=fromBearing(p.team,p.angle);
+    return `<div class="aim-row"><div class="aim-track"><input class="aim-slider" data-aim-slider type="range" min="-80" max="80" step="1" value="${angle}" aria-label="Cannon aiming angle" aria-valuetext="${aimLabel(angle)} relative to the enemy"><div class="aim-ticks"><span>−80°</span><span>0°</span><span>+80°</span></div></div><output class="aim-value" data-angle-value>${aimLabel(angle)}</output></div>`;
   }
   function panelHTML(p){
     const ready=p.stage==='armed',sunk=p.hp<=0;
@@ -792,7 +797,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       const answer=`<div class="quiz-options">${p.question.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
       body=`<div class="console-body"><div class="question-text">${esc(p.question.text)}</div>${answer}</div>`;
     }else{
-      body=`<div class="console-body"><div class="control-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="display:none"':''}><div class="box-label">BEARING</div>${knobHTML(p.angle)}</div><div class="control-box" style="margin-top:9px"><div class="box-label">AMMO</div><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div></div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'CALL AIRSTRIKE ✈':'FIRE ➤'}</button></div>`;
+      body=`<div class="console-body"><div class="control-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="display:none"':''}><div class="box-label">AIM</div>${sliderHTML(p)}</div><div class="control-box" style="margin-top:9px"><div class="box-label">AMMO</div><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div></div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'CALL AIRSTRIKE ✈':'FIRE ➤'}</button></div>`;
     }
     return head+body;
   }
@@ -811,9 +816,10 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
       }
       const stateEl=el.querySelector('.console-state');
       if(stateEl){stateEl.textContent=p.hp<=0?'● SUNK':p.stage==='armed'?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';stateEl.classList.toggle('defense-on',p.defenseOpen);}
-      const angle=el.querySelector('[data-angle-value]');if(angle)angle.textContent=`${Math.round(p.angle)}°`;
-      const knob=el.querySelector('[data-bearing-knob]');
-      if(knob&&!knob.matches(':active')){knob.style.setProperty('--bearing',`${p.angle}deg`);knob.setAttribute('aria-valuenow',String(p.angle));knob.setAttribute('aria-valuetext',`${p.angle} degrees`);}
+      const slider=el.querySelector('[data-aim-slider]');
+      if(slider&&!slider.matches(':active'))slider.value=String(fromBearing(p.team,p.angle));
+      const angle=el.querySelector('[data-angle-value]');
+      if(angle)angle.textContent=aimLabel(slider&&slider.matches(':active')?Number(slider.value):fromBearing(p.team,p.angle));
       el.querySelectorAll('[data-action="equip"]').forEach(btn=>{btn.classList.toggle('selected',btn.dataset.value===p.ammo);btn.setAttribute('aria-pressed',String(btn.dataset.value===p.ammo));});
       const fire=el.querySelector('[data-action="fire"]');if(fire)fire.setAttribute('title',p.ammo==='repair'?'Repair your ship (uses this attack cycle)':`Fire ${AMMO[p.ammo].name}`);
     });
@@ -848,36 +854,19 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     if(action==='choice'){const s=getGameState(),q=s?.players[id]?.question;if(q?.kind==='choice')doAction(id,'answer',q.options[Number(btn.dataset.value)]);}
     else doAction(id,action,btn.dataset.value);
   });
-  // A full-circle bearing knob: north 0°, east 90°, south 180°, west 270°.
-  // Delegate pointer handling so changing ammo/panels does not lose controls.
-  let draggingKnob=null;
-  function setKnobBearing(knob,angle){
-    const v=((Math.round(angle)%360)+360)%360;
-    knob.style.setProperty('--bearing',`${v}deg`);
-    knob.setAttribute('aria-valuenow',String(v));
-    knob.setAttribute('aria-valuetext',`${v} degrees`);
-    const readout=knob.closest('.control-box')?.querySelector('[data-angle-value]');
-    if(readout)readout.textContent=`${v}°`;
-    const panel=knob.closest('[data-player]');if(panel)doAction(Number(panel.dataset.player),'aim',v);
-  }
-  function angleAtPointer(knob,event){
-    const r=knob.getBoundingClientRect(),x=event.clientX-(r.left+r.width/2),y=event.clientY-(r.top+r.height/2);
-    return (Math.atan2(x,-y)*180/Math.PI+360)%360;
-  }
-  controls.addEventListener('pointerdown',e=>{
-    const knob=e.target.closest('[data-bearing-knob]');if(!knob)return;
-    draggingKnob=knob;knob.setPointerCapture?.(e.pointerId);e.preventDefault();
-    setKnobBearing(knob,angleAtPointer(knob,e));
-  });
-  controls.addEventListener('pointermove',e=>{if(!draggingKnob)return;setKnobBearing(draggingKnob,angleAtPointer(draggingKnob,e));});
-  controls.addEventListener('pointerup',()=>draggingKnob=null);
-  controls.addEventListener('pointercancel',()=>draggingKnob=null);
-  controls.addEventListener('keydown',e=>{
-    const knob=e.target.closest('[data-bearing-knob]');if(!knob)return;
-    if(!['ArrowRight','ArrowUp','ArrowLeft','ArrowDown','Home'].includes(e.key))return;
-    e.preventDefault();
-    const angle=Number(knob.getAttribute('aria-valuenow'))||0;
-    setKnobBearing(knob,e.key==='Home'?0:angle+(e.key==='ArrowRight'||e.key==='ArrowUp'?5:-5));
+  // Delegated native range input works with taps, touch dragging, and arrow keys.
+  // The original aim action remains authoritative, including during online matches.
+  controls.addEventListener('input',e=>{
+    const slider=e.target.closest('[data-aim-slider]');
+    if(!slider)return;
+    const panel=slider.closest('[data-player]');if(!panel)return;
+    const id=Number(panel.dataset.player),p=getGameState()?.players?.find(x=>x.id===id);
+    if(!p||p.stage!=='armed')return;
+    const offset=Math.max(-80,Math.min(80,Math.round(Number(slider.value))));
+    const angle=slider.closest('.control-box')?.querySelector('[data-angle-value]');
+    if(angle)angle.textContent=aimLabel(offset);
+    slider.setAttribute('aria-valuetext',`${aimLabel(offset)} relative to the enemy`);
+    doAction(id,'aim',toBearing(p.team,offset));
   });
 
   // Unskewed top-down tactical checkerboard; world coordinates are whole tiles.
@@ -1191,7 +1180,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.2-all-multiple-choice',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.3-slider-aim',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
