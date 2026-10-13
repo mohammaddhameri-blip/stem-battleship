@@ -356,6 +356,11 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 /* Optional aiming lines: hide until enabled by the player. */
 .zoom-controls #aim-assist-btn{min-width:63px;background:#183c51;color:#c3dded}
 .zoom-controls #aim-assist-btn[aria-pressed="true"]{background:#1c6b67;color:#d0fff7;border:1px solid #4de6c1}
+
+/* v2.8: uninterrupted water surface instead of two boxed sea territories */
+#battle>.sea-frame{border:0;background:#052338;box-shadow:none;border-radius:7px}
+#battle-canvas{background:#072d43}
+
 </style>
 </head>
 <body>
@@ -1167,53 +1172,73 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const rect=canvas.getBoundingClientRect();
     const factor=cameraScale();return unproject(((evt.clientX-rect.left)*W/rect.width-W/2)/factor+W/2,((evt.clientY-rect.top)*H/rect.height-H/2)/factor+H/2);
   }
+
   function wave(t){
-    ctx.fillStyle=gradient(0,0,W,H,[[0,'#09253a'],[.52,'#174e68'],[1,'#072336']]);ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle='rgba(108,208,220,.11)';ctx.lineWidth=1.5;
-    for(let row=0;row<16;row++)for(let col=0;col<18;col++){
-      const x=(col*85+(row%2)*42+(t*.009)%(85))%W,y=30+row*40+Math.sin(t*.0007+col)*4;
-      ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+13,y-3,x+24,y);ctx.stroke();
+    // One continuous animated ocean, with sweeping dark swells,
+    // wind-driven crests and foam. No boxed left/right territories.
+    const phase=t*.001;
+    ctx.fillStyle=gradient(0,0,W,H,[[0,'#062538'],[.48,'#136079'],[1,'#031e32']]);
+    ctx.fillRect(0,0,W,H);
+    for(let band=0;band<16;band++){
+      const baseline=22+band*43;
+      const offset=phase*(11+(band%4)*4);
+      ctx.beginPath();
+      for(let x=-35;x<=W+35;x+=17){
+        const y=baseline+Math.sin(x*.013+offset+band*1.83)*12+
+          Math.sin(x*.031-offset*.65+band*.84)*4;
+        if(x===-35)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=band%3===0?'rgba(1,23,42,.36)':'rgba(0,42,66,.27)';
+      ctx.lineWidth=18;ctx.stroke();
+      ctx.beginPath();
+      for(let x=-35;x<=W+35;x+=17){
+        const y=baseline-7+Math.sin(x*.013+offset+band*1.83)*12+
+          Math.sin(x*.031-offset*.65+band*.84)*4;
+        if(x===-35)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=band%3===0?'rgba(137,233,244,.27)':'rgba(74,181,209,.19)';
+      ctx.lineWidth=3.5;ctx.stroke();
     }
-    for(let i=0;i<24;i++){const x=(i*239+77)%W,y=(i*103+119)%H;ellipse(x,y,1.2,1,'#a1e9ec2d');}
+    // Animated whitecaps, lighter ripples and small foam streaks.
+    for(let i=0;i<115;i++){
+      const x=((i*193+phase*17*(1+i%3))%(W+100))-50;
+      const y=(i*73+Math.sin(phase*1.4+i*2.1)*14+H*20)%H;
+      const length=9+(i%7)*6;
+      ctx.beginPath();ctx.moveTo(x,y);
+      ctx.quadraticCurveTo(x+length*.55,y-4-(i%3),x+length,y+Math.sin(phase+i)*2);
+      ctx.strokeStyle=i%4===0?'rgba(191,250,255,.30)':'rgba(113,216,228,.20)';
+      ctx.lineWidth=i%5===0?2.4:1.2;ctx.stroke();
+    }
   }
   function grid(t,s){
-    const left=ORIGIN_X,top=ORIGIN_Y,right=left+COLS*TILE,bottom=top+ROWS*TILE;
-    // Crisp squares: no affine skew, parallelograms, perspective or trapezoid.
-    ctx.fillStyle='#091e2c';ctx.fillRect(left-5,top-5,COLS*TILE+10,ROWS*TILE+10);
-    if(s?.movementMode==='auto'){ctx.fillStyle='rgba(34,113,139,.55)';ctx.fillRect(left,top,COLS*TILE,ROWS*TILE);}
-    if(s?.movementMode!=='auto')for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-      const x=left+c*TILE,y=top+r*TILE;
-      ctx.fillStyle=(c+r)%2===0?'#2e6277':'#173c51';
-      ctx.fillRect(x,y,TILE,TILE);
-      ctx.strokeStyle='rgba(164,213,225,.10)';ctx.lineWidth=1;
-      ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);
-      // A soft water glint gives the flat grid visual depth without distorting tiles.
-      if((c*7+r*11)%13===0){
-        ctx.strokeStyle='rgba(164,240,240,.13)';ctx.lineWidth=2;
-        ctx.beginPath();ctx.moveTo(x+16,y+23);ctx.quadraticCurveTo(x+37,y+15,x+53,y+22);ctx.stroke();
-      }
-    }
-    // Same checker pattern throughout. Only the border indicates territory ownership.
-    ctx.strokeStyle='rgba(95,187,216,.45)';ctx.lineWidth=2;ctx.strokeRect(left+1.5,top+1.5,SPLIT*TILE-3,ROWS*TILE-3);
-    ctx.strokeStyle='rgba(232,136,145,.45)';ctx.lineWidth=2;ctx.strokeRect(left+SPLIT*TILE+1.5,top+1.5,SPLIT*TILE-3,ROWS*TILE-3);
-    ctx.fillStyle='rgba(3,17,27,.22)';ctx.fillRect(left+SPLIT*TILE-4,top,8,ROWS*TILE);
-    ctx.strokeStyle='rgba(245,227,169,.68)';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(left+SPLIT*TILE,top);ctx.lineTo(left+SPLIT*TILE,bottom);ctx.stroke();
-    ctx.fillStyle='#c4f0ff';ctx.font='900 13px system-ui';ctx.textAlign='left';ctx.fillText('BLUE',left+10,top+21);
-    ctx.fillStyle='#ffccca';ctx.textAlign='right';ctx.fillText('RED',right-10,top+21);
-    if(!s||s.winner!==null)return;
+    // No rectangular sea zones or checkerboard: just a faint central
+    // boundary so teams can understand their permitted sailing halves.
+    const lineX=ORIGIN_X+SPLIT*TILE;
+    ctx.save();
+    ctx.beginPath();ctx.moveTo(lineX,ORIGIN_Y);ctx.lineTo(lineX,ORIGIN_Y+ROWS*TILE);
+    ctx.strokeStyle='rgba(207,237,240,.18)';ctx.lineWidth=1.5;
+    ctx.setLineDash([7,16]);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='800 11px system-ui';
+    ctx.fillStyle='rgba(169,231,255,.62)';ctx.textAlign='left';
+    ctx.fillText('BLUE',ORIGIN_X+10,ORIGIN_Y+18);
+    ctx.fillStyle='rgba(255,191,205,.62)';ctx.textAlign='right';
+    ctx.fillText('RED',ORIGIN_X+COLS*TILE-10,ORIGIN_Y+18);
+    ctx.restore();
+    if(!s||s.winner!==null||s.movementMode==='auto')return;
+    // Manual mode: indicate only reachable adjacent squares rather than
+    // redrawing a full checkerboard over the ocean.
     for(const p of s.players){
-      if(s.movementMode==='auto'||!(p.stage==='armed'||p.defenseOpen))continue;
+      if(!(p.stage==='armed'||p.defenseOpen))continue;
       if((mode==='host'&&p.id!==0)||(mode==='guest'&&p.id!==myId))continue;
       for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){
         if(dc===0&&dr===0)continue;
-        const c=p.col+dc,r=p.row+dr;
-        if(!within(p.team,c,r)||s.players.some(q=>q.hp>0&&q.id!==p.id&&q.col===c&&q.row===r))continue;
-        const x=left+c*TILE,y=top+r*TILE;
-        ctx.fillStyle=`rgba(106,247,181,${.19+.07*Math.sin(t*.003+c+r)})`;
-        ctx.fillRect(x+3,y+3,TILE-6,TILE-6);
-        ctx.strokeStyle='#96ffc5';ctx.lineWidth=3;ctx.strokeRect(x+5,y+5,TILE-10,TILE-10);
-        ellipse(x+TILE/2,y+TILE/2,4,4,'#b3ffdb');
+        const c=p.col+dc,row=p.row+dr;
+        if(!within(p.team,c,row)||s.players.some(q=>q.hp>0&&q.id!==p.id&&q.col===c&&q.row===row))continue;
+        const loc=PROJECT(c,row);
+        ctx.fillStyle='rgba(110,239,181,.10)';
+        ctx.fillRect(loc.x+4,loc.y+4,TILE-8,TILE-8);
+        ctx.strokeStyle='rgba(137,246,195,.45)';ctx.lineWidth=1.5;
+        ctx.strokeRect(loc.x+5,loc.y+5,TILE-10,TILE-10);
       }
     }
   }
@@ -1296,14 +1321,25 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     ctx.strokeStyle=paint.barrel;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(1,-1);ctx.lineTo(24,-1);ctx.stroke();ctx.restore();
     poly([[12,7],[14,-2],[19,-7],[26,-7],[32,-2],[34,7]],paint.cannon,light,1.2);
     ctx.restore();
-    const name=p.profile?.name||`P${p.id+1}`,maxWidth=Math.min(TILE*1.7,154),fontSize=Math.max(10,Math.min(13,TILE*.18));
-    ctx.save();ctx.font=`900 ${fontSize}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';
-    const labelWidth=Math.min(maxWidth,ctx.measureText(name).width+14),labelY=mid.y-44*sc-12;
-    ctx.fillStyle=p.team===0?'rgba(3,29,49,.92)':'rgba(49,20,33,.92)';
+
+    const name=p.profile?.name||`P${p.id+1}`;
+    const maxWidth=Math.min(TILE*1.78,154),fontSize=Math.max(10,Math.min(13,TILE*.18));
+    ctx.save();ctx.font=`900 ${fontSize}px system-ui`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    const labelWidth=Math.max(61,Math.min(maxWidth,ctx.measureText(name).width+16));
+    const labelY=mid.y-44*sc-25,barY=labelY+23;
+    ctx.fillStyle=p.team===0?'rgba(3,29,49,.93)':'rgba(49,20,33,.93)';
     ctx.fillRect(mid.x-labelWidth/2,labelY,labelWidth,20);
     ctx.strokeStyle=p.team===0?'#76d5f5':'#f7a5b2';ctx.lineWidth=1;
     ctx.strokeRect(mid.x-labelWidth/2,labelY,labelWidth,20);
     ctx.fillStyle='#f5fbff';ctx.fillText(name,mid.x,labelY+10,Math.max(10,labelWidth-8));
+    // Compact on-ship health bar, always immediately beneath the name.
+    const barWidth=labelWidth,health=CLAMP(p.hp/MAX_HP,0,1);
+    ctx.fillStyle='rgba(0,12,20,.92)';
+    ctx.fillRect(mid.x-barWidth/2-1,barY-1,barWidth+2,9);
+    ctx.fillStyle='#3b5160';ctx.fillRect(mid.x-barWidth/2,barY,barWidth,7);
+    ctx.fillStyle=health>.6?'#66eba4':health>.3?'#f8ca63':'#fb6875';
+    ctx.fillRect(mid.x-barWidth/2,barY,barWidth*health,7);
     ctx.restore();
   }
 
@@ -1407,7 +1443,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const mid=PROJECT(b.x,b.y);
       const isArc=b.type==='shell'||b.type==='flak';
       const progress=Math.min(1,b.age/(b.type==='shell'?1.7:1.25));
-      const altitude=isArc?Math.sin(progress*Math.PI)*Math.min(73,TILE*.75):0;
+      const altitude=isArc?Math.sin(progress*Math.PI)*Math.min(15,TILE*.18):0;
       if(isArc){
         // Animate the projectile's arcing height without drawing a trajectory line.
         ellipse(mid.x+3,mid.y+5,Math.max(3,6*(1-progress*.45)),3,'rgba(0,11,24,.38)');
