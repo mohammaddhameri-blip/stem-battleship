@@ -278,6 +278,80 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
  #battle .weapon-grid{gap:3px}
 }
 
+
+/* v2.6: simultaneous local players and explicit four-row Fit Screen for classrooms */
+body.game-active{height:100vh;height:100dvh;overflow:hidden}
+body.game-active .app-shell{height:100vh;height:100dvh;min-height:0;width:100%;max-width:100vw;overflow:hidden;display:flex;flex-direction:column}
+body.game-active .app-shell main{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px}
+#battle:not(.hidden){
+ display:grid;grid-template-columns:minmax(0,1fr);
+ grid-template-rows:minmax(0,auto) minmax(0,auto) minmax(0,45fr) minmax(0,55fr);
+ grid-template-areas:"heading" "scores" "sea" "panels";
+ width:100%;height:100%;min-height:0;min-width:0;
+ padding:3px clamp(4px,.6vw,12px) max(4px,env(safe-area-inset-bottom));
+ gap:5px;overflow:hidden;align-items:stretch;justify-items:stretch;
+}
+#battle>.battle-heading{grid-area:heading;min-width:0;max-height:20px;min-height:0;margin:0}
+#battle>.scoreboard{grid-area:scores;min-width:0;min-height:0;max-height:30px;margin:0}
+#battle>.sea-frame{grid-area:sea;min-width:0;min-height:0;height:100%;width:100%;max-width:none;max-height:100%;margin:0}
+#battle>.controls-grid{grid-area:panels;min-width:0;min-height:0;height:100%;width:100%;max-width:none;margin:0;overflow:hidden}
+#battle>.controls-grid.local-dual{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ grid-template-rows:minmax(0,1fr);gap:clamp(5px,1vw,14px);
+}
+#battle>.controls-grid.single{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);max-width:min(100%,1060px);margin-inline:auto}
+#battle .controls-grid>.control-panel{min-width:0;min-height:0;width:100%;height:100%;max-width:none;margin:0;display:flex;flex-direction:column}
+#battle .control-panel.p0{border-color:#3e8fbc}
+#battle .control-panel.p1{border-color:#a85f71}
+#battle .player-tag{display:inline-block;flex:none;border-radius:5px;padding:3px 6px;margin-right:7px;background:#174965;color:#bbecff;font-size:clamp(9px,1vw,12px);letter-spacing:.4px}
+#battle .control-panel.p1 .player-tag{background:#512b41;color:#ffd5e2}
+#battle .console-top{padding:4px 9px;min-height:29px;gap:6px}
+#battle .console-name{min-width:0;font-size:clamp(10px,1.14vw,15px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center}
+#battle .console-state{flex:none}
+#battle .console-body{height:100%;flex:1;min-height:0;padding:6px;overflow:hidden}
+#battle .console-body:has(.quiz-options){
+ display:grid;grid-template-columns:minmax(0,1fr);
+ grid-template-rows:minmax(0,35fr) minmax(0,65fr);gap:5px;
+}
+#battle .quiz-options{min-width:0;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:5px}
+#battle .quiz-option{min-width:0;min-height:0;height:100%;font-size:clamp(11px,1.4vw,18px);font-weight:850;line-height:1.22;padding:4px 7px;text-align:center}
+#battle .question-text{margin:0;min-height:0;max-height:100%;font-size:clamp(12px,1.65vw,22px);line-height:1.25;align-self:center;overflow:auto;overflow-wrap:anywhere}
+#battle .armed-body{display:grid;grid-template-rows:minmax(0,38fr) minmax(0,62fr);gap:4px}
+#battle .combat-row{min-height:0;display:grid;grid-template-columns:minmax(0,2.15fr) minmax(70px,1fr);gap:5px}
+#battle .weapon-grid{min-height:0;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:4px}
+#battle .weapon-btn{min-width:0;min-height:0;height:100%;white-space:normal;overflow:hidden;padding:3px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#battle .weapon-btn .weapon-title{font-size:clamp(9px,1.15vw,14px);overflow:visible;white-space:normal}
+#battle .weapon-btn .weapon-desc{font-size:clamp(8px,.95vw,12px)}
+#battle .fire-btn{height:100%;min-height:0;font-size:clamp(12px,1.9vw,22px)}
+#battle .aim-slider{height:30px;min-height:30px}
+#battle .aim-value{font-size:clamp(12px,1.5vw,22px)}
+@media(max-width:760px){
+ #battle:not(.hidden){grid-template-rows:minmax(0,auto) minmax(0,auto) minmax(0,41fr) minmax(0,59fr);gap:3px}
+ #battle>.controls-grid.local-dual{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+ #battle .console-top{padding:3px 4px;min-height:24px}
+ #battle .player-tag{font-size:8px;margin-right:4px;padding:2px 3px}
+ #battle .console-name{font-size:9px}
+ #battle .console-state{font-size:8px}
+ #battle .console-body{padding:3px}
+ #battle .question-text{font-size:clamp(10px,2.2vw,13px)}
+ #battle .quiz-options{gap:3px}
+ #battle .quiz-option{font-size:clamp(10px,2vw,13px);padding:2px}
+ #battle .box-label{font-size:8px}
+ #battle .weapon-btn .weapon-title{font-size:9px}
+ #battle .weapon-btn .weapon-desc{font-size:8px}
+ #battle .aim-ticks{font-size:8px}
+ #battle .aim-value{font-size:13px;min-width:38px}
+ #battle .fire-btn{font-size:12px}
+ #battle .combat-row{grid-template-columns:minmax(0,2fr) minmax(52px,1fr);gap:3px}
+}
+@media(max-height:620px) and (min-width:761px){
+ #battle:not(.hidden){grid-template-rows:0 minmax(0,auto) minmax(0,38fr) minmax(0,62fr);gap:3px}
+ #battle>.battle-heading{overflow:hidden}
+ #battle .console-top{min-height:22px;padding:2px 7px}
+ #battle .console-body{padding:4px}
+}
+
 </style>
 </head>
 <body>
@@ -343,7 +417,6 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
 <section class="battle hidden" id="battle">
 <div class="battle-heading"><div></div><div class="battle-metrics"><span class="room-chip hidden" id="room-chip">ROOM ------</span></div></div>
 <div class="scoreboard"><div class="fleet fleet-one" id="fleet-blue"></div><div class="score-vs">⚔</div><div class="fleet fleet-two" id="fleet-red"></div></div>
-<div class="captain-switch hidden" id="captain-switch" role="group" aria-label="Local player controls"><button type="button" class="active" data-captain="0">P1 · BLUE</button><button type="button" data-captain="1">P2 · RED</button></div>
 <div class="sea-frame"><canvas aria-label="Battleship battlefield for up to six ships" height="640" id="battle-canvas" width="1200">A modern browser is required to display the battlefield.</canvas><div class="zoom-controls" role="group" aria-label="Battlefield zoom"><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-fit" title="Fit entire battlefield" aria-label="Fit battlefield to screen">FIT · 50%</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></div><div aria-live="polite" class="battle-notice hidden" id="battle-notice" role="status"></div></div>
 
 <div class="controls-grid" id="controls"></div>
@@ -797,7 +870,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     publicState(){return {movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
-  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,localCaptain=0,zoomPercent=50,guestVisual=new Map(),lastRemoteSnapshotTime=0;
+  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,guestVisual=new Map(),lastRemoteSnapshotTime=0;
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
   const show=key=>['lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
   // Royalty-free original procedural audio lives in audio-engine.js.
@@ -831,12 +904,6 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   if('ResizeObserver' in window){const canvasObserver=new ResizeObserver(()=>fitCanvas());canvasObserver.observe($('battle').querySelector('.sea-frame'));}
   window.addEventListener('resize',fitCanvas);
   if(window.visualViewport)window.visualViewport.addEventListener('resize',fitCanvas);
-  $('captain-switch').addEventListener('click',e=>{
-    const btn=e.target.closest('[data-captain]');if(!btn||mode!=='local')return;
-    localCaptain=Number(btn.dataset.captain);
-    $('captain-switch').querySelectorAll('[data-captain]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captain)===localCaptain));
-    renderPanels(getGameState());
-  });
   const position=p=>{
     const smooth=mode==='guest'?guestVisual.get(p.id):null;
     return {x:smooth?.x??p.x??p.col+.5,y:smooth?.y??p.y??p.row+.5};
@@ -876,13 +943,13 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){audio.stop();destroyPeer();localCaptain=0;guestVisual.clear();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
-    mode=kind;localCaptain=0;$('captain-switch').querySelectorAll('[data-captain]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captain)===0));guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value):null;
+    mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');$('room-chip').classList.toggle('hidden',kind==='local');$('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'LOCAL':`P${myId+1} · ONLINE`;
-    controls.classList.toggle('single',true);controls.innerHTML='';$('captain-switch').classList.toggle('hidden',kind!=='local');show('battle');fitCanvas();audio.start();renderGameState(engine?.publicState()||null);
+    controls.classList.toggle('single',kind!=='local');controls.classList.toggle('local-dual',kind==='local');controls.innerHTML='';show('battle');fitCanvas();audio.start();renderGameState(engine?.publicState()||null);
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -979,7 +1046,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   function panelHTML(p){
     const ready=p.stage==='armed',sunk=p.hp<=0;
     const state=sunk?'● SUNK':ready?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';
-    const head=`<div class="console-top"><div class="console-name"><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
+    const head=`<div class="console-top"><div class="console-name"><span class="player-tag">${p.team===0?'P1 · BLUE':'P2 · RED'}</span><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
     let body;
     if(sunk)body='<div class="console-body">SUNK</div>';
     else if(!ready){
@@ -992,7 +1059,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   }
   function renderPanels(s){
     if(!s)return;
-    const ids=mode==='local'?[localCaptain]:[myId];
+    const ids=mode==='local'?[0,1]:[myId];
     for(const child of [...controls.children])if(!ids.includes(Number(child.dataset.player)))child.remove();
     ids.forEach(id=>{
       const p=s.players.find(x=>x.id===id);if(!p)return;
@@ -1344,7 +1411,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
     const s=getGameState();if(!s||s.winner!==null)return;
     const {c,r}=worldEvent(e),col=Math.floor(c),row=Math.floor(r);
     if(col<0||col>=COLS||row<0||row>=ROWS)return;
-    const ids=mode==='local'?[localCaptain]:[myId];
+    const ids=mode==='local'?[0,1]:[myId];
     // One adjacent tile per tap, including diagonals.
     for(const id of ids){const p=s.players.find(q=>q.id===id);if(!p||p.hp<=0)continue;
       if(s.movementMode!=='auto'&&(p.stage==='armed'||p.defenseOpen)&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
@@ -1459,7 +1526,7 @@ html,body,.app-shell,main{min-width:0;max-width:100%;overflow-x:clip}
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.5-cinematic-b2-shadow',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.6-dual-player-fit-screen',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
