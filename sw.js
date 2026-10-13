@@ -4,7 +4,7 @@
  * permits same-device play with the 238 fixed multiple-choice questions,
  * generated multiple-choice Maths, the restored aiming slider, Auto/Manual movement, Fit Screen, cinematic B-2 shadow, simultaneous two-player controls, smartboard Fit Screen, and original audio.
  */
-const CACHE='steam-battleship-shell-v2.6.0';
+const CACHE='steam-battleship-shell-v2.7.0';
 const SHELL=['./','./index.html','./audio-engine.js','./manifest.webmanifest','./icons/steam-battleship.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>Promise.all(
