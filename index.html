@@ -758,7 +758,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     // shell skipping across the hit zone between physics frames.
     hullHit(x0,y0,x1,y1,target){
       const cx=target.x,cy=target.y+.08;
-      const rx=.57,ry=.36; // vessel's visible hull plus a fair impact margin
+      const rx=.57,ry=.44; // generous elliptical hull to match visible ship and shell arc
       const sx=(x0-cx)/rx,sy=(y0-cy)/ry;
       const vx=(x1-x0)/rx,vy=(y1-y0)/ry;
       const len=vx*vx+vy*vy;
