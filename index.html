@@ -613,14 +613,17 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
     moveAuto(dt){
       if(this.movementMode!=='auto'||this.winner!==null||dt<=0)return;
-      const speed=.78; // 0.78 tiles per second; fast enough to evade, slow enough to aim.
+      const speed=.38; // Slower, smoothly gliding ships give pupils time to aim.
       for(const p of this.players){
         if(p.hp<=0)continue;
         const xmin=p.team===0?.65:SPLIT+.65;
         const xmax=p.team===0?SPLIT-.65:COLS-.65;
         const ymin=.65,ymax=ROWS-.65;
-        let target=p.autoTarget;
-        if(!target||Math.hypot(target.x-p.x,target.y-p.y)<.34){
+        // A spawned radio takes priority over roaming: automatically steer
+        // directly to this ship's own pickup until it has been collected.
+        const radio=this.pickups.find(w=>w.owner===p.id);
+        let target=radio?{x:radio.col+.5,y:radio.row+.5}:p.autoTarget;
+        if(!radio&&(!target||Math.hypot(target.x-p.x,target.y-p.y)<.34)){
           target={x:xmin+Math.random()*(xmax-xmin),y:ymin+Math.random()*(ymax-ymin)};
           p.autoTarget=target;
         }
@@ -630,12 +633,13 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         for(const other of this.players){
           if(other===p||other.hp<=0||other.team!==p.team)continue;
           const ox=p.x-other.x,oy=p.y-other.y,dist=Math.hypot(ox,oy);
-          if(dist>.0001&&dist<1.05){const push=(1.05-dist)*2.3;dx+=ox/dist*push;dy+=oy/dist*push;}
+          if(dist>.0001&&dist<1.05){const push=(1.05-dist)*(radio?.6:2.3);dx+=ox/dist*push;dy+=oy/dist*push;}
         }
         magnitude=Math.hypot(dx,dy)||1;
-        const ease=1-Math.exp(-dt*2.2);
-        p.vx+=(dx/magnitude*speed-p.vx)*ease;
-        p.vy+=(dy/magnitude*speed-p.vy)*ease;
+        const ease=1-Math.exp(-dt*(radio?4:2.2));
+        const chosenSpeed=radio?.48:speed;
+        p.vx+=(dx/magnitude*chosenSpeed-p.vx)*ease;
+        p.vy+=(dy/magnitude*chosenSpeed-p.vy)*ease;
         p.x=CLAMP(p.x+p.vx*dt,xmin,xmax);
         p.y=CLAMP(p.y+p.vy*dt,ymin,ymax);
         // Keep the integer tile index for compatibility with existing match data.
@@ -1526,7 +1530,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.6-dual-player-fit-screen',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.7-slow-auto-radio-homing',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
