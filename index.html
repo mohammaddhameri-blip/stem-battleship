@@ -436,7 +436,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const W=1200,H=640,MAX_HP=150,MAX_PLAYERS=6;
+  const W=1200,H=640,MAX_HP=50,MAX_PLAYERS=6;
   const SPEED={shell:6.5,flak:6.7,torpedo:5.2,airstrike:6.4};
   // One shadow crosses in two seconds. The missile arrives 1.5 seconds
   // after flyover (including the 0.18 s flight). Smoke lasts two seconds AFTER impact.
@@ -744,6 +744,18 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       if(!this.canUse(p,p.ammo))p.ammo='shell';
       this.changed(`${p.profile.name} fired ${AMMO[ammo].name}!`);
     }
+    // Continuous swept hull collision: match the wide side-profile ship,
+    // not a tiny circle at its centre. Sweeping each segment prevents a fast
+    // shell skipping across the hit zone between physics frames.
+    hullHit(x0,y0,x1,y1,target){
+      const cx=target.x,cy=target.y+.08;
+      const rx=.57,ry=.36; // vessel's visible hull plus a fair impact margin
+      const sx=(x0-cx)/rx,sy=(y0-cy)/ry;
+      const vx=(x1-x0)/rx,vy=(y1-y0)/ry;
+      const len=vx*vx+vy*vy;
+      const t=len?CLAMP(-(sx*vx+sy*vy)/len,0,1):0;
+      return (sx+vx*t)**2+(sy+vy*t)**2<=1;
+    }
     impact(b,target){
       const inflicted=Math.min(target.hp,b.damage);target.hp=Math.max(0,target.hp-b.damage);this.player(b.owner).hits++;
       if(this.volleyOwners[b.volley])this.volleyOwners[b.volley].hit=true;
@@ -839,9 +851,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         }}
         const steps=Math.max(1,Math.ceil(Math.hypot(b.vx,b.vy)*dt/.16));
         for(let i=0;i<steps;i++){
+          const beforeX=b.x,beforeY=b.y;
           b.x+=b.vx*dt/steps;b.y+=b.vy*dt/steps;
           const targets=b.homing?this.enemy(b.team).filter(q=>q.id===b.targetId):this.enemy(b.team);
-          const target=targets.find(q=>Math.hypot(b.x-q.x,b.y-q.y)<.50);
+          const target=targets.find(q=>this.hullHit(beforeX,beforeY,b.x,b.y,q));
           if(target){this.impact(b,target);remove.add(b.id);ended.add(b.volley);break;}
         }
         if(this.winner!==null)break;
@@ -1530,7 +1543,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.7-slow-auto-radio-homing',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.8-50hp-aim-assist-ocean',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
