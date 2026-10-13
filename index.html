@@ -352,6 +352,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
  #battle .console-body{padding:4px}
 }
 
+
+/* Optional aiming lines: hide until enabled by the player. */
+.zoom-controls #aim-assist-btn{min-width:63px;background:#183c51;color:#c3dded}
+.zoom-controls #aim-assist-btn[aria-pressed="true"]{background:#1c6b67;color:#d0fff7;border:1px solid #4de6c1}
 </style>
 </head>
 <body>
@@ -417,7 +421,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 <section class="battle hidden" id="battle">
 <div class="battle-heading"><div></div><div class="battle-metrics"><span class="room-chip hidden" id="room-chip">ROOM ------</span></div></div>
 <div class="scoreboard"><div class="fleet fleet-one" id="fleet-blue"></div><div class="score-vs">⚔</div><div class="fleet fleet-two" id="fleet-red"></div></div>
-<div class="sea-frame"><canvas aria-label="Battleship battlefield for up to six ships" height="640" id="battle-canvas" width="1200">A modern browser is required to display the battlefield.</canvas><div class="zoom-controls" role="group" aria-label="Battlefield zoom"><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-fit" title="Fit entire battlefield" aria-label="Fit battlefield to screen">FIT · 50%</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></div><div aria-live="polite" class="battle-notice hidden" id="battle-notice" role="status"></div></div>
+<div class="sea-frame"><canvas aria-label="Battleship battlefield for up to six ships" height="640" id="battle-canvas" width="1200">A modern browser is required to display the battlefield.</canvas><div class="zoom-controls" role="group" aria-label="Battlefield view controls"><button type="button" id="aim-assist-btn" aria-label="Toggle aiming guide lines" aria-pressed="false" title="Show aiming guide lines">AIM OFF</button><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-fit" title="Fit entire battlefield" aria-label="Fit battlefield to screen">FIT · 50%</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></div><div aria-live="polite" class="battle-notice hidden" id="battle-notice" role="status"></div></div>
 
 <div class="controls-grid" id="controls"></div>
 
@@ -887,7 +891,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     publicState(){return {movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
-  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,guestVisual=new Map(),lastRemoteSnapshotTime=0;
+  let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
   const show=key=>['lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
   // Royalty-free original procedural audio lives in audio-engine.js.
@@ -903,6 +907,17 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function syncZoom(){$('zoom-fit').textContent=zoomPercent===50?'FIT · 50%':`${zoomPercent}% · FIT`;}
   const cameraScale=()=>zoomPercent/50;
+  function updateAimAssist(){
+    const button=$('aim-assist-btn');
+    button.textContent=aimAssistEnabled?'AIM ON':'AIM OFF';
+    button.setAttribute('aria-pressed',String(aimAssistEnabled));
+    button.title=aimAssistEnabled?'Hide aiming guide lines':'Show aiming guide lines';
+  }
+  $('aim-assist-btn').addEventListener('click',()=>{
+    aimAssistEnabled=!aimAssistEnabled;
+    updateAimAssist();
+  });
+  updateAimAssist();
   function fitCanvas(){
     const frame=$('battle').classList.contains('hidden')?null:canvas.parentElement;
     if(!frame)return;
@@ -1202,6 +1217,28 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       }
     }
   }
+  function paintAimAssist(s){
+    if(!aimAssistEnabled||!s||s.winner!==null)return;
+    ctx.save();
+    ctx.beginPath();ctx.rect(ORIGIN_X,ORIGIN_Y,COLS*TILE,ROWS*TILE);ctx.clip();
+    for(const p of s.players){
+      if(p.hp<=0||p.stage!=='armed'||p.lastCorrect===false||p.ammo==='repair'||p.ammo==='airstrike')continue;
+      const place=position(p),rad=p.angle*Math.PI/180;
+      const dx=Math.sin(rad),dy=-Math.cos(rad);
+      const tx=Math.abs(dx)<.00001?Infinity:(dx>0?(COLS-.1-place.x)/dx:(.1-place.x)/dx);
+      const ty=Math.abs(dy)<.00001?Infinity:(dy>0?(ROWS-.1-place.y)/dy:(.1-place.y)/dy);
+      const distance=Math.max(0,Math.min(tx>0?tx:Infinity,ty>0?ty:Infinity));
+      if(!Number.isFinite(distance)||distance<.1)continue;
+      const start=PROJECT(place.x+dx*.38,place.y+dy*.38);
+      const end=PROJECT(place.x+dx*distance,place.y+dy*distance);
+      ctx.beginPath();ctx.moveTo(start.x,start.y);ctx.lineTo(end.x,end.y);
+      ctx.lineWidth=2.4;ctx.strokeStyle=p.team===0?'rgba(129,230,252,.78)':'rgba(255,170,192,.78)';
+      ctx.setLineDash([10,10]);ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(end.x,end.y,4.5,0,Math.PI*2);
+      ctx.strokeStyle=p.team===0?'#8ddff2':'#ffd2df';ctx.lineWidth=1.4;ctx.stroke();
+    }
+    ctx.restore();
+  }
   function ship(p,t){
     const place=position(p),mid=PROJECT(place.x,place.y),face=p.team===0?1:-1,sc=TILE/100;
     const paint=cleanProfile(p.profile,p.id).colors,base=paint.body,light=paint.lining,dark=darken(paint.body,.43);
@@ -1419,7 +1456,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function drawScene(s,t){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);wave(t);
     ctx.save();applyCamera();grid(t,s);
-    if(s){paintAirstrikeShadows(s);for(const w of (s.pickups||[])){const loc=PROJECT(w.col+.5,w.row+.5);const sc=TILE/100;ctx.save();ctx.translate(loc.x,loc.y);ctx.fillStyle='rgba(252,216,107,.16)';ctx.beginPath();ctx.arc(0,0,30*sc,0,7);ctx.fill();ctx.font=`${Math.max(19,35*sc)}px system-ui`;ctx.textAlign='center';ctx.fillText('📻',0,11*sc);ctx.restore();}for(const p of s.players)ship(p,t);paintAirstrikeMissiles(s);paintProjectiles(s,t);paintEffects(s);
+    if(s){paintAirstrikeShadows(s);for(const w of (s.pickups||[])){const loc=PROJECT(w.col+.5,w.row+.5);const sc=TILE/100;ctx.save();ctx.translate(loc.x,loc.y);ctx.fillStyle='rgba(252,216,107,.16)';ctx.beginPath();ctx.arc(0,0,30*sc,0,7);ctx.fill();ctx.font=`${Math.max(19,35*sc)}px system-ui`;ctx.textAlign='center';ctx.fillText('📻',0,11*sc);ctx.restore();}paintAimAssist(s);for(const p of s.players)ship(p,t);paintAirstrikeMissiles(s);paintProjectiles(s,t);paintEffects(s);
       for(const p of s.players){if(p.stage==='armed'&&p.ammo==='airstrike'&&p.target&&((mode==='host'&&p.id===0)||(mode==='guest'&&p.id===myId)||(mode==='local'))){const m=PROJECT(p.target.col+.5,p.target.row+.5);ctx.strokeStyle='rgba(250,232,130,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(m.x,m.y,Math.max(10,TILE*.29),0,Math.PI*2);ctx.stroke();}}
       if(s.winner!==null&&s.players.every(p=>p.hp>0||(p.sinkAge||0)>=5)){ctx.fillStyle='#04172bd9';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#dcf5f8';ctx.font='900 47px system-ui';ctx.fillText(`${s.winner===0?'BLUE':'RED'} VICTORY`,W/2,260);}}
     ctx.restore();
