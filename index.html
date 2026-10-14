@@ -523,8 +523,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('bay-id').textContent=`CAPTAIN ${workshopSlot+1}`;for(const part of PAINT_KEYS)$('paint-'+part).value=p.colors[part];paintPreview();
   }
   function attachWorkshop(){
-    $('captain-one').addEventListener('click',()=>{workshopSlot=0;refreshWorkshop();});
-    $('captain-two').addEventListener('click',()=>{workshopSlot=1;refreshWorkshop();});
+    $('captain-one').addEventListener('click',()=>{workshopSlot=0;refreshWorkshop();syncHostSettings();});
+    $('captain-two').addEventListener('click',()=>{workshopSlot=1;refreshWorkshop();syncHostSettings();});
     $('ship-name').addEventListener('input',e=>{const v=cleanName(e.target.value);if(e.target.value!==v)e.target.value=v;savedProfiles[workshopSlot].name=v;$('name-count').textContent=`${v.length}/15`;persistProfiles();paintPreview();});
     $('ship-name').addEventListener('blur',()=>{savedProfiles[workshopSlot]=cleanProfile(savedProfiles[workshopSlot],workshopSlot);persistProfiles();refreshWorkshop();});
     for(const part of PAINT_KEYS)$('paint-'+part).addEventListener('input',e=>{savedProfiles[workshopSlot].colors[part]=e.target.value;persistProfiles();paintPreview();});
@@ -990,7 +990,44 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
-  const show=key=>['lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
+
+  // All host-control panels edit the same rule set. Changes persist between sessions.
+  let matchSettings=(()=>{try{return normalizeMatchSettings(JSON.parse(localStorage.getItem('stem-match-config-v3')||'null'));}catch(_){return normalizeMatchSettings(DEFAULT_MATCH_SETTINGS);}})();
+  function readMatchSettings(){
+    const v=normalizeMatchSettings(matchSettings);
+    $('movement-mode').value=v.autoRoam?'auto':'manual';
+    return v;
+  }
+  function syncHostSettings(){
+    const v=matchSettings;
+    document.querySelectorAll('[data-host-config]').forEach(panel=>{
+      panel.querySelectorAll('[data-setting]').forEach(x=>x.checked=!!v[x.dataset.setting]);
+      panel.querySelectorAll('[data-topic]').forEach(x=>x.checked=v.topics.includes(x.dataset.topic));
+      panel.querySelectorAll('[data-level]').forEach(x=>x.checked=v.levels.includes(Number(x.dataset.level)));
+    });
+    $('workshop-host-config').classList.toggle('hidden',workshopSlot!==0);
+    $('workshop-start').disabled=workshopSlot!==0;
+    $('waiting-host-config').classList.toggle('hidden',mode!=='waiting'||myId!==0);
+  }
+  function validateHostSettings(){
+    const valid=matchSettings.topics.length>0&&matchSettings.levels.length>0;
+    document.querySelectorAll('.config-note').forEach(el=>el.textContent=valid?'':'Select at least one subject and one question level.');
+    return valid;
+  }
+  document.querySelectorAll('[data-host-config]').forEach(panel=>panel.addEventListener('change',event=>{
+    const x=event.target;if(!(x instanceof HTMLInputElement))return;
+    if(x.dataset.setting){
+      matchSettings[x.dataset.setting]=x.checked;
+      if(x.checked&&x.dataset.setting==='fullManual')matchSettings.autoRoam=false;
+      if(x.checked&&x.dataset.setting==='autoRoam')matchSettings.fullManual=false;
+    }else if(x.dataset.topic)matchSettings.topics=x.checked?[...new Set([...matchSettings.topics,x.dataset.topic])]:matchSettings.topics.filter(t=>t!==x.dataset.topic);
+    else if(x.dataset.level)matchSettings.levels=x.checked?[...new Set([...matchSettings.levels,Number(x.dataset.level)])]:matchSettings.levels.filter(t=>t!==Number(x.dataset.level));
+    try{localStorage.setItem('stem-match-config-v3',JSON.stringify(matchSettings));}catch(_){}
+    syncHostSettings();validateHostSettings();
+  }));
+  syncHostSettings();
+
+  const show=key=>['main-menu','bot-setup','lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
   // Royalty-free original procedural audio lives in audio-engine.js.
   // If Web Audio is blocked, the rest of the game runs as normal.
   const audio=window.STEAMBattleAudio||{
@@ -1072,7 +1109,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
     mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];const quizMode=kind==='local'&&$('question-mode').value==='year2'?'year2':'mixed';if(quizMode==='year2')year2Deck=[];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value,quizMode):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
@@ -1091,7 +1128,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   function waiting(title,status){show('waiting');$('wait-title').textContent=title;$('wait-status').textContent=status;}
   function networkError(err){const message=err?.message||String(err||'Unknown connection error');$('wait-status').textContent=`Connection issue: ${message}. Try again.`;$('wait-title').textContent='UNABLE TO CONNECT';}
   function rosterView(){
-    const area=$('room-roster');area.innerHTML=roster.map(id=>`<span class="${id%2===0?'blue':'red'}">${esc(roomProfiles[id]?.name||`P${id+1}`)} · ${id%2===0?'BLUE':'RED'}</span>`).join('');
+    syncHostSettings();const area=$('room-roster');area.innerHTML=roster.map(id=>`<span class="${id%2===0?'blue':'red'}">${esc(roomProfiles[id]?.name||`P${id+1}`)} · ${id%2===0?'BLUE':'RED'}</span>`).join('');
     if(mode==='waiting'&&myId===0){$('start-match').classList.toggle('hidden',roster.length<2);$('start-match').disabled=roster.length<2;}
     $('wait-status').textContent=mode==='waiting'&&myId===0?`${roster.length}/6 captains · ${roster.length<2?'Waiting for opponents':'Start whenever ready'}`:'Waiting for host to start…';
   }
@@ -1137,7 +1174,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     catch(e){if(mode==='waiting')networkError(e);}
   }
   function startOnlineMatch(){
-    if(mode!=='waiting'||myId!==0||roster.length<2)return;
+    if(mode!=='waiting'||myId!==0||roster.length<2||!validateHostSettings())return;
     const ids=[...roster];broadcast({type:'start',players:ids,movementMode:$('movement-mode').value});beginGame('host',ids);sendState();
   }
   function sendState(){if(mode==='host'&&engine){broadcast({type:'state',state:engine.publicState()});lastSent=performance.now();lastSentVersion=engine.version;}}
@@ -1174,7 +1211,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function panelHTML(p,quizMode='mixed'){
     const ready=p.stage==='armed',sunk=p.hp<=0;
-    const state=sunk?'● SUNK':ready?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';
+    const state=sunk?'● SUNK':ready?'● CHOOSE ACTION':p.defenseOpen?'◉ MOVE':'● QUESTION';
     const head=`<div class="console-top"><div class="console-name"><span class="player-tag">${p.team===0?'P1 · BLUE':'P2 · RED'}</span><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
     let body;
     if(sunk)body='<div class="console-body">SUNK</div>';
@@ -1204,7 +1241,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         el.innerHTML=panelHTML(p,s.quizMode);el.dataset.renderKey=key;el.dataset.questionId=String(p.question.id);
       }
       const stateEl=el.querySelector('.console-state');
-      if(stateEl){stateEl.textContent=p.hp<=0?'● SUNK':p.stage==='armed'?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';stateEl.classList.toggle('defense-on',p.defenseOpen);}
+      if(stateEl){stateEl.textContent=p.hp<=0?'● SUNK':p.stage==='armed'?'● CHOOSE ACTION':p.defenseOpen?'◉ MOVE':'● QUESTION';stateEl.classList.toggle('defense-on',p.defenseOpen);}
       const slider=el.querySelector('[data-aim-slider]');
       if(slider&&!slider.matches(':active'))slider.value=String(fromBearing(p.team,p.angle));
       const angle=el.querySelector('[data-angle-value]');
@@ -1324,7 +1361,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     // Manual mode: indicate only reachable adjacent squares rather than
     // redrawing a full checkerboard over the ocean.
     for(const p of s.players){
-      if(!(p.stage==='armed'||p.defenseOpen))continue;
+      if(!(p.stage==='armed'||(!s.fullManual&&p.defenseOpen)))continue;
       if((mode==='host'&&p.id!==0)||(mode==='guest'&&p.id!==myId))continue;
       for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){
         if(dc===0&&dr===0)continue;
@@ -1600,7 +1637,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const ids=mode==='local'?[0,1]:[myId];
     // One adjacent tile per tap, including diagonals.
     for(const id of ids){const p=s.players.find(q=>q.id===id);if(!p||p.hp<=0)continue;
-      if(s.movementMode!=='auto'&&(p.stage==='armed'||p.defenseOpen)&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
+      if(s.movementMode!=='auto'&&(p.stage==='armed'||(!s.fullManual&&p.defenseOpen))&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
         doAction(id,'move',{col,row});tone(460,.05,'sine',.024);return;
       }
     }
@@ -1625,11 +1662,22 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   requestAnimationFrame(frame);
 
   attachWorkshop();
+  syncHostSettings();
+  $('solo-btn').addEventListener('click',()=>show('bot-setup'));
+  $('bot-back').addEventListener('click',resetToLobby);
+  $('start-bot-match').addEventListener('click',()=>{if(!validateHostSettings())return;botDifficulty=document.querySelector('input[name="bot-difficulty"]:checked')?.value||'normal';beginGame('bot');});
+  $('menu-same-btn').addEventListener('click',()=>{workshopSlot=0;refreshWorkshop();syncHostSettings();show('lobby');});
+  $('menu-online-btn').addEventListener('click',()=>{savedProfiles[0]=cleanProfile(savedProfiles[0],0);persistProfiles();show('online-setup');});
+  $('menu-help-btn').addEventListener('click',()=>$('help-overlay').classList.remove('hidden'));
+  $('menu-settings-btn').addEventListener('click',()=>$('sound-btn').click());
+  $('workshop-back').addEventListener('click',resetToLobby);
+  $('workshop-start').addEventListener('click',()=>{if(workshopSlot!==0||!validateHostSettings())return;savedProfiles=savedProfiles.map((p,id)=>cleanProfile(p,id));persistProfiles();beginGame('local');});
+
    $('local-btn').addEventListener('click',()=>{savedProfiles=savedProfiles.map((p,id)=>cleanProfile(p,id));persistProfiles();beginGame('local');});
   $('start-match').addEventListener('click',startOnlineMatch);
   $('online-btn').addEventListener('click',()=>{savedProfiles[0]=cleanProfile(savedProfiles[0],0);persistProfiles();show('online-setup');});
   $('setup-back').addEventListener('click',resetToLobby);
-  $('create-room').addEventListener('click',hostRoom);
+  $('create-room').addEventListener('click',()=>{if(validateHostSettings())hostRoom();});
   $('join-form').addEventListener('submit',e=>{e.preventDefault();const code=$('room-code').value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length!==6){$('room-code').setCustomValidity('Enter a six-character room code.');$('room-code').reportValidity();return;}$('room-code').setCustomValidity('');joinRoom(code);});
   $('room-code').addEventListener('input',e=>{$('room-code').setCustomValidity('');e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);});
   $('cancel-wait').addEventListener('click',resetToLobby);
