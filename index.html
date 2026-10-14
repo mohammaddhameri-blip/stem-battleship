@@ -361,6 +361,14 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 #battle>.sea-frame{border:0;background:#052338;box-shadow:none;border-radius:7px}
 #battle-canvas{background:#072d43}
 
+
+/* Same Device Year 2 Auto Aim — large, legible aim status replaces the slider. */
+.auto-aim-indicator{display:flex;align-items:center;justify-content:center;gap:10px;min-height:100%;width:100%;border-radius:7px;padding:2px 6px;font-weight:900}
+.auto-aim-indicator strong{font-size:clamp(12px,1.7vw,21px);letter-spacing:.6px;white-space:nowrap}
+.auto-aim-indicator span{font-size:clamp(9px,1.05vw,13px);letter-spacing:.6px}
+.auto-aim-indicator.tracking{color:#b9ffde;background:linear-gradient(95deg,rgba(9,98,78,.35),rgba(11,70,81,.18))}
+.auto-aim-indicator.random{color:#ffe8ae;background:linear-gradient(95deg,rgba(125,80,18,.32),rgba(82,47,16,.18))}
+@media(max-width:760px){.auto-aim-indicator{gap:4px;flex-direction:column}.auto-aim-indicator strong{font-size:11px}.auto-aim-indicator span{font-size:8px}}
 </style>
 </head>
 <body>
@@ -1111,7 +1119,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const angle=fromBearing(p.team,p.angle);
     return `<div class="aim-row"><div class="aim-track"><input class="aim-slider" data-aim-slider type="range" min="-80" max="80" step="1" value="${angle}" aria-label="Cannon aiming angle" aria-valuetext="${aimLabel(angle)} relative to the enemy"><div class="aim-ticks"><span>−80°</span><span>0°</span><span>+80°</span></div></div><output class="aim-value" data-angle-value>${aimLabel(angle)}</output></div>`;
   }
-  function panelHTML(p){
+  function panelHTML(p,quizMode='mixed'){
     const ready=p.stage==='armed',sunk=p.hp<=0;
     const state=sunk?'● SUNK':ready?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';
     const head=`<div class="console-top"><div class="console-name"><span class="player-tag">${p.team===0?'P1 · BLUE':'P2 · RED'}</span><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
@@ -1121,7 +1129,11 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const answer=`<div class="quiz-options">${p.question.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
       body=`<div class="console-body"><div class="question-text">${esc(p.question.text)}</div>${answer}</div>`;
     }else{
-      body=`<div class="console-body armed-body"><div class="control-box aim-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="visibility:hidden"':''}><div class="box-label">AIM</div>${sliderHTML(p)}</div><div class="combat-row"><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'AIRSTRIKE ✈':'FIRE!'}</button></div></div>`;
+      const autoAim=quizMode==='year2';
+      const aimView=autoAim?
+        `<div class="auto-aim-indicator ${p.lastCorrect?'tracking':'random'}"><strong>${p.lastCorrect?'🎯 AUTO AIM':'🎲 RANDOM AIM'}</strong><span>${p.lastCorrect?'TRACKING ENEMY':'INCORRECT ANSWER'}</span></div>`:
+        `<div class="box-label">AIM</div>${sliderHTML(p)}`;
+      body=`<div class="console-body armed-body"><div class="control-box aim-box" ${p.ammo==='repair'||p.ammo==='airstrike'?'style="visibility:hidden"':''}>${aimView}</div><div class="combat-row"><div class="weapon-grid">${Object.keys(AMMO).filter(key=>key!=='airstrike'||p.stock.airstrike>0).map(key=>weaponButton(p,key)).join('')}</div><button class="fire-btn" data-action="fire" type="button" aria-label="${p.ammo==='repair'?'Repair ship':p.ammo==='airstrike'?'Call one airstrike':'Fire one shot'}">${p.ammo==='repair'?'REPAIR ✚':p.ammo==='airstrike'?'AIRSTRIKE ✈':'FIRE!'}</button></div></div>`;
     }
     return head+body;
   }
@@ -1136,7 +1148,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       let el=controls.querySelector(`[data-player="${id}"]`);
       if(!el){el=document.createElement('section');el.className=`control-panel p${id}`;el.dataset.player=id;controls.appendChild(el);}
       if(el.dataset.renderKey!==key){
-        el.innerHTML=panelHTML(p);el.dataset.renderKey=key;el.dataset.questionId=String(p.question.id);
+        el.innerHTML=panelHTML(p,s.quizMode);el.dataset.renderKey=key;el.dataset.questionId=String(p.question.id);
       }
       const stateEl=el.querySelector('.console-state');
       if(stateEl){stateEl.textContent=p.hp<=0?'● SUNK':p.stage==='armed'?'● READY':p.defenseOpen?'◉ MOVE':'● QUESTION';stateEl.classList.toggle('defense-on',p.defenseOpen);}
