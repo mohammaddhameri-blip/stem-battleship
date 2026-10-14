@@ -590,44 +590,81 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     for(let next=1;choices.length<4;next++)if(!choices.includes(String(next)))choices.push(String(next));
     return shuffle(choices);
   }
-  function makeQuestion(quizMode='mixed'){
-    questionCounter++;
+
+  // Host selections apply to both captains and every connected peer.
+  const CONFIG_TOPICS=['science-life','science-plants','science-matter','science-energy','math-add','math-subtract','math-multiply','math-divide','math-percent','math-measure','english-vocab','english-grammar'];
+  const DEFAULT_MATCH_SETTINGS={aimAssist:false,autoRoam:true,fullManual:false,topics:[...CONFIG_TOPICS],levels:[1,2]};
+  function normalizeMatchSettings(value){
+    const v=value&&typeof value==='object'?value:{};
+    const topics=Array.isArray(v.topics)?[...new Set(v.topics.filter(x=>CONFIG_TOPICS.includes(x)))]:[...CONFIG_TOPICS];
+    const levels=Array.isArray(v.levels)?[...new Set(v.levels.map(Number).filter(x=>x===1||x===2))]:[1,2];
+    return {aimAssist:v.aimAssist===true,autoRoam:v.fullManual===true?false:v.autoRoam!==false,fullManual:v.fullManual===true,
+      topics:topics.length?topics:[...CONFIG_TOPICS],levels:levels.length?levels:[1,2]};
+  }
+  function questionTopic(q){
+    const sub=String(q.subject||'').toLowerCase(),text=String(q.text||'');
+    if(sub.includes('english'))return sub.includes('grammar')?'english-grammar':'english-vocab';
+    if(sub.includes('math')){
+      if(/\%|percent|percentage/i.test(text))return 'math-percent';
+      if(/area|perimeter|cm|km|minutes|hours|length|weigh|mass|measurement|money/i.test(text))return 'math-measure';
+      if(/÷|divid|half|quarter/i.test(text))return 'math-divide';
+      if(/×|multipli|times|product|altogether|groups of|boxes have/i.test(text))return 'math-multiply';
+      if(/−|minus|subtract|difference|left/i.test(text))return 'math-subtract';
+      return 'math-add';
+    }
+    if(/plant|leaf|leaves|seed|root|flower|soil|grow/i.test(text))return 'science-plants';
+    if(/animal|mammal|fish|owl|bird|cat|ant|spider|body|organ|breathe|lung|heart|teeth|skull|brain|people|legs|human|hand/i.test(text))return 'science-life';
+    if(/material|solid|liquid|gas|waterproof|freez|melt|dissolv|plastic|ice|waste|decompos/i.test(text))return 'science-matter';
+    return 'science-energy';
+  }
+  function questionLevel(q){
+    if(q.levelNumber===1||q.levelNumber===2)return q.levelNumber;
+    const t=String(q.text||'');
+    if(q.subject==='Science')return /friction|vibration|gravity|rotate|decompos|electricity|infections|melting|dissolv|mass|waterproof|gas |force |temperature|shadow|organ|gills|solar/i.test(t)?2:1;
+    if(String(q.subject).includes('English'))return /are |does |doesn't|do |don't|isn't|can't|wearing|have got|has got|usually|yesterday|which|between|there are|any |can |cannot|taller|shorter|because/i.test(t)?2:1;
+    return /\%|percent|area|perimeter|minutes|hours|sequence|follows|half/i.test(t)?2:1;
+  }
+  const matchQuestionDecks=new Map();
+  function generatedMathQuestion(settings){
+    const ops=settings.topics.filter(t=>t.startsWith('math-'));
+    if(!ops.length)return null;
+    const topic=ops[rnd(0,ops.length-1)],level=settings.levels[rnd(0,settings.levels.length-1)];
+    let a,b,text,answer;
+    if(topic==='math-add'){a=rnd(2,level===1?18:65);b=rnd(2,level===1?14:35);text=`${a} + ${b} = ?`;answer=a+b;}
+    else if(topic==='math-subtract'){a=rnd(level===1?12:40,level===1?28:90);b=rnd(2,Math.min(a-1,level===1?12:40));text=`${a} − ${b} = ?`;answer=a-b;}
+    else if(topic==='math-multiply'){a=rnd(2,level===1?5:9);b=rnd(2,level===1?6:9);text=`${a} × ${b} = ?`;answer=a*b;}
+    else if(topic==='math-divide'){a=rnd(2,level===1?5:9);b=rnd(2,level===1?5:9);text=`${a*b} ÷ ${a} = ?`;answer=b;}
+    else if(topic==='math-percent'){const sets=level===1?[[50,80],[25,60],[10,70]]:[[25,80],[40,70],[50,90],[20,60],[10,90]];[a,b]=sets[rnd(0,sets.length-1)];text=`What is ${a}% of ${b}?`;answer=a*b/100;}
+    else {a=rnd(2,level===1?5:8);b=rnd(2,level===1?5:7);text=level===1?`There are ${a} bags with ${b} shells each. How many shells?`:`A rectangle is ${a} cm by ${b} cm. What is its area (cm²)?`;answer=a*b;}
+    return {id:++questionCounter,kind:'choice',text,answer:String(answer),options:mathChoiceOptions(answer),subject:'Mathematics',level:`Level ${level}`,levelNumber:level};
+  }
+  function makeQuestion(quizMode='mixed',rawSettings=null){
+    const settings=normalizeMatchSettings(rawSettings);
     if(quizMode==='year2'){
       if(!year2Deck.length)year2Deck=shuffle(YEAR2_QUIZ);
       const item=year2Deck.pop();
-      return {id:questionCounter,kind:'choice',text:item.text,answer:item.answer,options:shuffle(item.options),subject:item.subject,level:item.level};
+      return {id:++questionCounter,kind:'choice',text:item.text,answer:item.answer,options:shuffle(item.options),subject:item.subject,level:item.level};
     }
-    if(Math.random()<.86){
-      if(!quizDeck.length)quizDeck=shuffle(QUIZ_BANK);
-      const item=quizDeck.pop();
-      return {id:questionCounter,kind:'choice',text:item.text,answer:item.answer,options:shuffle(item.options),subject:item.subject,level:item.level};
-    }
-    // Short mental Maths: multiplication, division, money/measure-style problems, easy percentages.
-    let text,answer,a,b;
-    switch(rnd(0,9)){
-      case 0:a=rnd(2,60);b=rnd(2,25);text=`${a} + ${b} = ?`;answer=a+b;break;
-      case 1:a=rnd(20,80);b=rnd(1,25);text=`${a} − ${b} = ?`;answer=a-b;break;
-      case 2:a=rnd(2,9);b=rnd(2,9);text=`${a} × ${b} = ?`;answer=a*b;break;
-      case 3:a=rnd(2,9);b=rnd(2,9);text=`${a*b} ÷ ${a} = ?`;answer=b;break;
-      case 4:a=rnd(2,8);b=rnd(2,8);text=`A rectangle is ${a} cm long and ${b} cm wide. Find its area in cm².`;answer=a*b;break;
-      case 5:a=rnd(2,9);text=`A square has sides of ${a} cm. Find its perimeter in cm.`;answer=4*a;break;
-      case 6:a=rnd(2,8);b=rnd(2,5);text=`A boat travels ${a} km each hour. How far in ${b} hours (km)?`;answer=a*b;break;
-      case 7:{const easy=[[10,80],[10,60],[20,60],[25,80],[25,60],[40,70],[50,90],[50,80]];[a,b]=easy[rnd(0,easy.length-1)];text=`What is ${a}% of ${b}?`;answer=a*b/100;break;}
-      case 8:a=rnd(2,8);b=rnd(2,6);text=`${a} boxes have ${b} pencils each. How many pencils altogether?`;answer=a*b;break;
-      default:a=rnd(2,9);text=`What is half of ${a*10}?`;answer=a*5;
-    }
-    return {id:questionCounter,kind:'choice',text,answer:String(answer),options:mathChoiceOptions(answer),subject:'Mathematics',level:'Primary • Easy'};
+    const all=[...QUIZ_BANK,...YEAR2_QUIZ];
+    const eligible=all.filter(q=>settings.topics.includes(questionTopic(q))&&settings.levels.includes(questionLevel(q)));
+    const hasMath=settings.topics.some(x=>x.startsWith('math-'));
+    if(hasMath&&(!eligible.length||Math.random()<.34))return generatedMathQuestion(settings);
+    const key=settings.topics.slice().sort().join('|')+'/'+settings.levels.slice().sort().join(',');
+    if(!matchQuestionDecks.get(key)?.length)matchQuestionDecks.set(key,shuffle(eligible.length?eligible:all));
+    const item=matchQuestionDecks.get(key).pop();
+    return {id:++questionCounter,kind:'choice',text:item.text,answer:String(item.answer),options:shuffle(item.options),subject:item.subject,level:`Level ${questionLevel(item)}`};
   }
-  function makePlayer(id,team,col,row,profile,quizMode='mixed'){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile,quizMode='mixed',settings=null){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode,settings),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
-    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed'){
+    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null){
       this.quizMode=!online&&quizMode==='year2'?'year2':'mixed';
-      this.movementMode=movementMode==='auto'?'auto':'manual';this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
+      this.settings=normalizeMatchSettings(settings??{autoRoam:movementMode==='auto'});this.fullManual=this.settings.fullManual;
+       this.movementMode=this.settings.autoRoam?'auto':'manual';this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
       const positions=[0,0];
-      this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id],this.quizMode);});
+      this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id],this.quizMode,this.settings);});
       this.projectiles=[];this.airstrikes=[];this.effects=[];this.pickups=[];
       this.winner=null;this.version=1;this.eventId=1;this.notice='';
       this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};
@@ -727,13 +764,28 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     act(id,type,value){
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0)return;
       if(type==='move'){
-        if(this.movementMode==='auto'||!(p.stage==='armed'||p.defenseOpen))return;
+        if(this.movementMode==='auto'||!(p.stage==='armed'||(!this.fullManual&&p.defenseOpen)))return;
         if(!value||!Number.isInteger(value.col)||!Number.isInteger(value.row))return;
         const col=value.col,row=value.row;
         if(!within(p.team,col,row)||Math.max(Math.abs(col-p.col),Math.abs(row-p.row))!==1)return;
         if(this.players.some(q=>q.hp>0&&q.id!==id&&q.col===col&&q.row===row))return;
-        p.col=col;p.row=row;p.x=col+.5;p.y=row+.5;
-        this.checkPickup(p);this.changed();
+        // Full Manual: a question purchases exactly ONE movement, shot or repair.
+        // Incorrect answers scatter the ship to a different legal adjacent tile.
+        let landing={col,row};
+        if(this.fullManual&&!p.lastCorrect){
+          const choices=[];
+          for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){
+            if(!dc&&!dr)continue;
+            const nc=p.col+dc,nr=p.row+dr;
+            if(within(p.team,nc,nr)&&!this.players.some(q=>q.hp>0&&q.id!==id&&q.col===nc&&q.row===nr))choices.push({col:nc,row:nr});
+          }
+          if(!choices.length)return;
+          landing=choices[rnd(0,choices.length-1)];
+        }
+        p.col=landing.col;p.row=landing.row;p.x=landing.col+.5;p.y=landing.row+.5;
+        this.checkPickup(p);
+        if(this.fullManual){const wasCorrect=p.lastCorrect;p.stage='question';p.question=makeQuestion(this.quizMode,this.settings);p.lastCorrect=null;p.defenseOpen=false;this.changed(wasCorrect?`${p.profile.name} moved!`:`${p.profile.name} drifted to a random tile!`);}
+        else this.changed();
         return;
       }
       if(type==='aim'){if(p.stage!=='armed'||(this.quizMode==='year2'&&p.lastCorrect===true)||!Number.isFinite(Number(value)))return;p.angle=((Math.round(Number(value))%360)+360)%360;}
@@ -766,7 +818,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         const gained=Math.min(5,MAX_HP-p.hp);
         p.hp=Math.min(MAX_HP,p.hp+5);p.repairs++;
         this.effects.push({type:'repair',x:p.x,y:p.y,age:0,life:2.2});
-        p.stage='question';p.question=makeQuestion(this.quizMode);p.lastCorrect=null;
+        p.stage='question';p.question=makeQuestion(this.quizMode,this.settings);p.lastCorrect=null;
         this.changed(`${p.profile.name} repaired ${gained} HP!`);
         return;
       }
@@ -787,7 +839,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
           passX:null,passY:null,impactX:null,impactY:null,impactAge:null
         });
       }else this.projectile(p,ammo,angle,volley);
-      p.shots++;p.stage='question';p.question=makeQuestion(this.quizMode);p.lastCorrect=null;
+      p.shots++;p.stage='question';p.question=makeQuestion(this.quizMode,this.settings);p.lastCorrect=null;
       if(!this.canUse(p,p.ammo))p.ammo='shell';
       this.changed(`${p.profile.name} fired ${AMMO[ammo].name}!`);
     }
@@ -925,14 +977,14 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
             this.spawnRadio(1-attacker.team);
           }
         }
-        if(this.movementMode==='manual'&&attacker.lastVolley===volley&&!this.projectiles.some(b=>b.team===attacker.team)){
+        if(this.movementMode==='manual'&&!this.fullManual&&attacker.lastVolley===volley&&!this.projectiles.some(b=>b.team===attacker.team)){
           for(const defender of this.enemy(attacker.team))if(!defender.defenseOpen)defender.defenseOpen=true;
           this.changed();
         }
         delete this.volleyOwners[volley];
       }
     }
-    publicState(){return {quizMode:this.quizMode,movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    publicState(){return {quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
