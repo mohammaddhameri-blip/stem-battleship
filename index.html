@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
-<meta name="theme-color" content="#071425"/>
+<meta name="theme-color" content="#05192f"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="STEAM Battleship"/>
@@ -13,8 +13,8 @@
 <link rel="manifest" href="./manifest.webmanifest"/>
 <link rel="icon" type="image/svg+xml" href="./icons/steam-battleship.svg"/>
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png"/>
-<meta content="#071425" name="theme-color"/>
-<meta content="STEAM Battleship by MrDhameri: one question unlocks one attack in a fast-paced educational naval duel." name="description"/>
+<meta content="#05192f" name="theme-color"/>
+<meta content="STEM Battleship: Single player bots, same-device duels, online team battles, and configurable learning missions." name="description"/>
 <title>STEM BATTLESHIP · Naval Command</title>
 <style>
 
@@ -1296,7 +1296,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('rematch-btn').classList.toggle('hidden',mode==='guest');$('end-overlay').classList.remove('hidden');
   }
   controls.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn||btn.disabled)return;const panel=btn.closest('[data-player]');if(!panel)return;const id=Number(panel.dataset.player),action=btn.dataset.action;
-    if(action==='choice'){const s=getGameState(),q=s?.players[id]?.question;if(q?.kind==='choice')doAction(id,'answer',q.options[Number(btn.dataset.value)]);}
+    if(action==='choice'){const s=getGameState(),q=s?.players.find(p=>p.id===id)?.question;if(q?.kind==='choice')doAction(id,'answer',q.options[Number(btn.dataset.value)]);}
     else doAction(id,action,btn.dataset.value);
   });
   // Delegated native range input works with taps, touch dragging, and arrow keys.
