@@ -646,12 +646,16 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const item=year2Deck.pop();
       return {id:++questionCounter,kind:'choice',text:item.text,answer:item.answer,options:shuffle(item.options),subject:item.subject,level:item.level};
     }
-    const all=[...QUIZ_BANK,...YEAR2_QUIZ];
+    const all=[...QUIZ_BANK,...YEAR2_QUIZ,
+      {subject:'Science',text:'Which part of a plant absorbs water and minerals from the soil?',answer:'Roots',options:['Roots','Flowers','Fruits','Petals'],levelNumber:2},
+      {subject:'Science',text:'Which plant part usually produces food using sunlight?',answer:'Leaves',options:['Leaves','Roots','Fruit','Stem only'],levelNumber:2},
+      {subject:'Science',text:'What do plants absorb from the soil through their roots?',answer:'Water and minerals',options:['Water and minerals','Plastic','Smoke','Glass'],levelNumber:2}
+    ];
     const eligible=all.filter(q=>settings.topics.includes(questionTopic(q))&&settings.levels.includes(questionLevel(q)));
     const hasMath=settings.topics.some(x=>x.startsWith('math-'));
     if(hasMath&&(!eligible.length||Math.random()<.34))return generatedMathQuestion(settings);
     const key=settings.topics.slice().sort().join('|')+'/'+settings.levels.slice().sort().join(',');
-    if(!matchQuestionDecks.get(key)?.length)matchQuestionDecks.set(key,shuffle(eligible.length?eligible:all));
+    if(!matchQuestionDecks.get(key)?.length)matchQuestionDecks.set(key,shuffle(eligible.length?eligible:all.filter(q=>settings.topics.includes(questionTopic(q)))));
     const item=matchQuestionDecks.get(key).pop();
     return {id:++questionCounter,kind:'choice',text:item.text,answer:String(item.answer),options:shuffle(item.options),subject:item.subject,level:`Level ${questionLevel(item)}`};
   }
@@ -989,7 +993,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
-  let botDifficulty='normal',botNextAt=0;
+  let botDifficulty='normal',botNextAt=0,matchAssistConfigured=false;
   const controls=$('controls'),canvas=$('battle-canvas'),ctx=canvas.getContext('2d');
 
   // All host-control panels edit the same rule set. Changes persist between sessions.
@@ -1044,6 +1048,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   const cameraScale=()=>zoomPercent/50;
   function updateAimAssist(){
     const button=$('aim-assist-btn');
+    const allowed=(visibleGameState||engine?.publicState())?.settings?.aimAssist!==false;
+    button.disabled=!allowed;if(!allowed)aimAssistEnabled=false;
     button.textContent=aimAssistEnabled?'AIM ON':'AIM OFF';
     button.setAttribute('aria-pressed',String(aimAssistEnabled));
     button.title=aimAssistEnabled?'Hide aiming guide lines':'Show aiming guide lines';
@@ -1119,7 +1125,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const rules=readMatchSettings(),botProfiles=[savedProfiles[0],cleanProfile({...savedProfiles[1],name:'CPU '+botDifficulty.toUpperCase()},1)];
     const profiles=kind==='bot'?botProfiles:kind==='local'?savedProfiles:roomProfiles;
     engine=['local','host','bot'].includes(kind)?new Game(ids,kind==='host',profiles,$('movement-mode').value,quizMode,rules):null;
-    botNextAt=0;aimAssistEnabled=rules.aimAssist;updateAimAssist();
+    botNextAt=0;matchAssistConfigured=false;aimAssistEnabled=rules.aimAssist;updateAimAssist();
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');
     $('room-chip').classList.toggle('hidden',kind!=='host'&&kind!=='guest');
@@ -1186,7 +1192,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function startOnlineMatch(){
     if(mode!=='waiting'||myId!==0||roster.length<2||!validateHostSettings())return;
-    const ids=[...roster];broadcast({type:'start',players:ids,movementMode:$('movement-mode').value});beginGame('host',ids);sendState();
+    const ids=[...roster];broadcast({type:'start',players:ids,movementMode:readMatchSettings().autoRoam?'auto':'manual',settings:readMatchSettings()});beginGame('host',ids);sendState();
   }
   function sendState(){if(mode==='host'&&engine){broadcast({type:'state',state:engine.publicState()});lastSent=performance.now();lastSentVersion=engine.version;}}
   function processAction(id,action,value){if(!engine)return;
@@ -1277,6 +1283,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     noticeTimeout=setTimeout(()=>box.classList.add('hidden'),1700);
   }
   function renderGameState(s){if(!s)return;visibleGameState=s;$('battle').dataset.moveMode=s.movementMode||'manual';
+     if(!matchAssistConfigured){aimAssistEnabled=!!s.settings?.aimAssist;matchAssistConfigured=true;}
+     updateAimAssist();
     if(lastUiVersion!==s.version){lastUiVersion=s.version;renderPanels(s);renderFleet(s);showBattleNotice(s.notice);
       if(s.winner!==null&&s.players.every(p=>p.hp>0||(p.sinkAge||0)>=5))endMatch(s);else $('end-overlay').classList.add('hidden');updateSfx(s);
     }
