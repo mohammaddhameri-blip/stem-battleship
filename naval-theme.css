@@ -1,0 +1,64 @@
+
+/* Stormfront Command: coordinated blue / cyan naval visual system. */
+:root{--bg:#030f21;--surface:#081a30;--raised:#0c2946;--line:#2b6b91;--muted:#93b7ce;--light:#e9f8ff;--teal:#51dcff;--blue:#66d3fb;--red:#ff9aa0;--yellow:#fbd486}
+html,body{background:#030f21;color:var(--light)}
+body{background:radial-gradient(ellipse at 80% 0%,#19456a 0%,transparent 53%),linear-gradient(160deg,#051329,#061c32 65%,#020916)}
+.topbar{background:linear-gradient(90deg,rgba(3,14,29,.97),rgba(9,39,66,.95));border-bottom:1px solid #2b7ca4;box-shadow:0 1px 22px #16a4e527}
+.brand-mark,.brand-title span,.workshop-heading h1 span{color:#74dfff}
+.brand-mark{border-color:#2a7ea0;background:linear-gradient(160deg,#0b3756,#051829)}
+.icon-btn,.secondary-btn{border-color:#37779a;background:linear-gradient(145deg,#102d48,#07172b)}
+.icon-btn:hover,.secondary-btn:hover{border-color:#77e3ff;box-shadow:0 0 14px #13c6ff2b}
+.primary-btn,.fire-btn{background:linear-gradient(115deg,#33c2e9,#9beeff);color:#04243a;border:1px solid #7fe7ff;box-shadow:inset 0 0 9px #edffff65,0 0 18px #0baeff33}
+.primary-btn:hover,.fire-btn:hover{filter:brightness(1.07)}
+.setup-card,.workshop-editor,.workshop-preview-pane,.control-panel,.setup-option,.end-card,.help-card,.audio-panel{background:linear-gradient(145deg,rgba(13,47,73,.96),rgba(4,19,38,.97));border:1px solid #327698;box-shadow:inset 0 1px #b1efff14,0 12px 38px #01091973}
+.workshop-kicker,.workshop-pane-head,.setup-label,.workshop-editor-head,.paint-title,.paint-preset-title,.box-label{color:#8fddf5}
+.workshop-grid{gap:clamp(12px,2vw,28px)}
+#battle>.sea-frame{outline:1px solid #137aac;box-shadow:inset 0 0 20px #11afff2a}
+#battle-canvas{background:#063a61}
+#battle .control-panel.p0{border-color:#4ba8d7}#battle .control-panel.p1{border-color:#698eaa}
+#battle .control-panel.p1 .player-tag{background:#3c4869;color:#ecddff}
+.quiz-option,.weapon-btn{background:linear-gradient(145deg,#153d5b,#081d36);border-color:#357c9e;color:#dff5ff}
+.quiz-option:hover,.weapon-btn:hover{border-color:#87e8fc}
+.weapon-btn.selected{background:linear-gradient(145deg,#14597f,#0b3352);border-color:#70e2ff;box-shadow:0 0 0 1px #56cdf766 inset}
+.health-track{background:#07152b;border-color:#418cb1}
+.health-fill.azure{background:linear-gradient(90deg,#1264b9,#53d9ff)}
+.health-fill.crimson{background:linear-gradient(90deg,#3e65c8,#b9aeff)}
+.end-overlay,.help-overlay{backdrop-filter:blur(12px)}
+/* Landing: cinematic two-layer seascape with readable left navigation. */
+#main-menu{min-height:calc(100dvh - 62px);width:100%;max-width:none;position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;padding:clamp(18px,3.6vw,58px);background:linear-gradient(90deg,rgba(2,14,32,.9) 0%,rgba(2,16,36,.65) 29%,rgba(0,15,37,.05) 72%),url('./naval-scene.svg') center center/cover no-repeat,#05213c}
+#main-menu:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 69px,#35c0ec0a 70px 71px),repeating-linear-gradient(0deg,transparent 0 69px,#35c0ec09 70px 71px),linear-gradient(0deg,#020b1be8,transparent 25%,transparent 85%,#03112672)}
+#main-menu:after{content:"";position:absolute;right:7%;top:8%;width:min(26vw,380px);height:min(26vw,380px);border-radius:50%;opacity:.45;pointer-events:none;background:repeating-radial-gradient(circle,#4bd0f426 0 2px,transparent 2px 54px),linear-gradient(90deg,transparent 49.8%,#40c5ff35 50%,transparent 50.2%),linear-gradient(0deg,transparent 49.8%,#40c5ff35 50%,transparent 50.2%);border:1px solid #4bc8ee38}
+.menu-content{position:relative;z-index:1;max-width:680px;width:min(100%,530px);margin-top:70px}
+.menu-kicker{color:#77dcff;letter-spacing:3px;font-size:11px;font-weight:900}
+.menu-title{font-weight:1000;line-height:.91;font-size:clamp(46px,7vw,100px);margin:14px 0 35px;letter-spacing:-2px;text-shadow:0 6px 28px #000b,-2px -2px #b9deee}
+.menu-title span{display:block;color:#b2e9fc;text-shadow:0 3px 0 #15608d,0 8px 25px #12a7ee69}
+.menu-actions{display:grid;gap:12px;max-width:430px}
+.menu-action{position:relative;display:flex;align-items:center;gap:16px;padding:15px 19px;min-height:65px;text-align:left;color:#e7faff;background:linear-gradient(92deg,rgba(5,34,65,.96),rgba(9,43,71,.8));border:1px solid #3ab5e7;clip-path:polygon(12px 0,calc(100% - 15px) 0,100% 18px,100% 100%,15px 100%,0 calc(100% - 15px));box-shadow:inset 0 0 0 1px #1b78a466;letter-spacing:1.4px;font-size:clamp(13px,1.65vw,18px);font-weight:900}
+.menu-action:hover,.menu-action:focus-visible{background:linear-gradient(90deg,#0e5e89,#0d2c53);border-color:#b1f3ff;outline:2px solid #58d9ff;outline-offset:2px}
+.menu-action.primary{border:2px solid #a7f5ff;background:linear-gradient(100deg,#116a91ed,#083b6bed);font-size:22px;box-shadow:0 0 24px #1a9be65c}
+.menu-action .menu-symbol{font-size:25px;min-width:30px;text-align:center;color:#80e8ff}.menu-action .menu-arrow{margin-left:auto;font-size:24px;color:#64d5fc}
+.menu-footer{font-size:11px;letter-spacing:2px;color:#a8cde0;margin-top:23px}
+#lobby,#bot-setup,#online-setup,#waiting{position:relative;max-width:1240px;margin-inline:auto}
+.workshop-play{display:none!important}
+.workshop-launch{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap}
+.workshop-launch .primary-btn{font-size:15px;min-width:200px}
+.nav-back{display:inline-flex;align-items:center}
+.host-config{border:1px solid #347e9f;border-radius:12px;background:linear-gradient(145deg,#061c33e3,#0b2e47ed);padding:clamp(13px,2vw,20px);margin:18px 0;color:#d7f2ff}
+.host-config h3{color:#9de9ff;margin:0 0 10px;letter-spacing:1px;font-size:15px}
+.host-config p{color:#9dbecc;font-size:12px;margin:8px 0}
+.config-toggle-row,.config-checkboxes{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.config-group{border-top:1px solid #2a5474;padding-top:12px;margin-top:13px}
+.config-group-title{font-size:10px;color:#87d5ed;font-weight:900;letter-spacing:1.5px;display:block;margin-bottom:8px}
+.config-check{display:inline-flex;align-items:center;gap:7px;border:1px solid #2d688a;border-radius:8px;background:#081d34;padding:9px 11px;font-size:12px;font-weight:750;line-height:1.25;cursor:pointer}
+.config-check:has(input:checked){border-color:#4bbfee;background:#0e4262}
+.config-check input{accent-color:#4bdcff;width:16px;height:16px;margin:0}
+.config-note{min-height:17px;font-size:12px;color:#ffe1a2;margin-top:8px}
+.bot-difficulties{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.difficulty-card{padding:17px;display:block;border:1px solid #3a88a9;border-radius:12px;background:linear-gradient(140deg,#113d60,#071c33);cursor:pointer}
+.difficulty-card:has(input:checked){border-color:#8cefff;box-shadow:inset 0 0 0 2px #23b9f362,0 0 18px #10b8fe28}
+.difficulty-card input{accent-color:#4ed7ff}.difficulty-card strong{display:block;margin:8px 0;font-size:18px}.difficulty-card small{color:#b2d1e0;line-height:1.5}
+#bot-setup .setup-card{max-width:950px;margin-inline:auto}
+#online-setup .setup-cols{align-items:start}
+#online-setup .host-config{margin-top:20px}
+#waiting .host-config{width:100%;text-align:left;margin:12px 0 18px}
+@media(max-width:700px){#main-menu{padding:18px;min-height:calc(100dvh - 53px);align-items:center;background-position:58% center}#main-menu:after{display:none}.menu-content{margin-top:15px;width:min(95%,420px)}.menu-title{font-size:clamp(38px,10vw,67px);margin:8px 0 26px}.menu-actions{gap:8px}.menu-action{min-height:51px;padding:9px 14px;gap:10px;font-size:13px}.menu-action.primary{font-size:17px}.menu-action .menu-symbol{font-size:20px}.menu-footer{font-size:9px}.bot-difficulties{grid-template-columns:1fr}.difficulty-card{padding:9px 13px}.difficulty-card strong{display:inline;margin-left:8px}.host-config{padding:11px}.config-check{font-size:11px;padding:7px 8px}.workshop-launch{justify-content:stretch}.workshop-launch .primary-btn{flex:1}}
