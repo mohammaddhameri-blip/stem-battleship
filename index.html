@@ -389,6 +389,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     <canvas id="ship-preview" width="720" height="360" aria-label="Live preview of your ship design"></canvas>
     <div class="preview-name" id="preview-ship-name">P1 VANGUARD</div>
     <div class="movement-choice"><label for="movement-mode">SHIP MOVEMENT</label><select id="movement-mode" aria-label="Ship movement mode"><option value="auto" selected> AUTO · Smooth sailing </option><option value="manual"> MANUAL · Tap to dodge </option></select></div>
+    <div class="movement-choice"><label for="question-mode">SAME DEVICE · SUBJECT</label><select id="question-mode" aria-label="Same Device question mode"><option value="mixed" selected>Mixed STEM + English</option><option value="year2">Year 2 English · Auto Aim</option></select></div>
 <div class="workshop-play">
       <button class="mode-card" id="local-btn" type="button"><span class="mode-icon">▣</span><span class="mode-title">SAME DEVICE</span></button>
       <button class="mode-card" id="online-btn" type="button"><span class="mode-icon">◎</span><span class="mode-title">ONLINE</span></button>
@@ -609,15 +610,16 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
     return {id:questionCounter,kind:'choice',text,answer:String(answer),options:mathChoiceOptions(answer),subject:'Mathematics',level:'Primary • Easy'};
   }
-  function makePlayer(id,team,col,row,profile){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile,quizMode='mixed'){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
-    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual'){
+    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed'){
+      this.quizMode=!online&&quizMode==='year2'?'year2':'mixed';
       this.movementMode=movementMode==='auto'?'auto':'manual';this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
       const positions=[0,0];
-      this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id]);});
+      this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id],this.quizMode);});
       this.projectiles=[];this.airstrikes=[];this.effects=[];this.pickups=[];
       this.winner=null;this.version=1;this.eventId=1;this.notice='';
       this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};
@@ -667,6 +669,22 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         this.checkPickup(p);
       }
     }
+    // Exclusive to Same Device Year 2. Correct answers automatically lock
+    // on to the nearest living enemy, then continuously track live movement.
+    // Wrong answers retain the existing random-angle penalty at firing time.
+    updateAutoAim(){
+      if(this.quizMode!=='year2'||this.online||this.winner!==null)return;
+      for(const p of this.players){
+        if(p.hp<=0||p.stage!=='armed'||p.lastCorrect!==true)continue;
+        const foes=this.enemy(p.team);
+        if(!foes.length)continue;
+        const enemy=foes.reduce((best,q)=>!best||Math.hypot(q.x-p.x,q.y-p.y)<Math.hypot(best.x-p.x,best.y-p.y)?q:best,null);
+        if(!enemy)continue;
+        const dx=enemy.x-p.x,dy=enemy.y-p.y;
+        // Bearing: 0° north, 90° east, 180° south, 270° west.
+        p.angle=((Math.atan2(dx,-dy)*180/Math.PI)%360+360)%360;
+      }
+    }
     player(id){return this.players.find(p=>p.id===id);}
     setProfile(id,profile){const p=this.player(id);if(!p)return;p.profile=cleanProfile(profile,id);this.changed();}
     alive(team){return this.players.filter(p=>p.team===team&&p.hp>0);}
@@ -694,6 +712,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const actual=String(p.question.answer).trim().toLowerCase(),given=String(input??'').trim().toLowerCase();
       const correct=actual===given;
       p.lastCorrect=correct;p.stage='armed';p.answered++;if(correct){p.correct++;p.streak++;}else{p.streak=0;if(p.ammo==='torpedo')p.ammo='shell';}
+      if(this.quizMode==='year2'&&correct)this.updateAutoAim();
       this.changed(`P${id+1} answered ${correct?'correctly':'incorrectly'}.`);
     }
     canUse(p,key){return !!AMMO[key]&&(key!=='airstrike'||p.stock.airstrike>0)&&p.streak>=AMMO[key].min&&(p.stock[key]===-1||p.stock[key]>0);}
@@ -709,7 +728,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         this.checkPickup(p);this.changed();
         return;
       }
-      if(type==='aim'){if(p.stage!=='armed'||!Number.isFinite(Number(value)))return;p.angle=((Math.round(Number(value))%360)+360)%360;}
+      if(type==='aim'){if(p.stage!=='armed'||(this.quizMode==='year2'&&p.lastCorrect===true)||!Number.isFinite(Number(value)))return;p.angle=((Math.round(Number(value))%360)+360)%360;}
       else if(type==='equip'){if(p.stage!=='armed'||!this.canUse(p,value))return;p.ammo=value;}
       else if(type==='target'){
         if(p.stage!=='armed'||!value||!Number.isInteger(value.col)||!Number.isInteger(value.row)||!within(1-p.team,value.col,value.row))return;
@@ -733,12 +752,13 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
     fire(id){
       const p=this.player(id);if(this.winner!==null||!p||p.hp<=0||p.stage!=='armed')return;
+      this.updateAutoAim(); // Resolve against target's most recent position even on a quick tap.
       const ammo=this.canUse(p,p.ammo)?p.ammo:'shell';
       if(ammo==='repair'){
         const gained=Math.min(5,MAX_HP-p.hp);
         p.hp=Math.min(MAX_HP,p.hp+5);p.repairs++;
         this.effects.push({type:'repair',x:p.x,y:p.y,age:0,life:2.2});
-        p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
+        p.stage='question';p.question=makeQuestion(this.quizMode);p.lastCorrect=null;
         this.changed(`${p.profile.name} repaired ${gained} HP!`);
         return;
       }
@@ -759,7 +779,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
           passX:null,passY:null,impactX:null,impactY:null,impactAge:null
         });
       }else this.projectile(p,ammo,angle,volley);
-      p.shots++;p.stage='question';p.question=makeQuestion();p.lastCorrect=null;
+      p.shots++;p.stage='question';p.question=makeQuestion(this.quizMode);p.lastCorrect=null;
       if(!this.canUse(p,p.ammo))p.ammo='shell';
       this.changed(`${p.profile.name} fired ${AMMO[ammo].name}!`);
     }
@@ -807,6 +827,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         return;
       }
       this.moveAuto(dt);
+      this.updateAutoAim();
       const ended=new Set(),remove=new Set();
       for(const plane of this.airstrikes){
         const oldX=plane.shadowX,oldY=plane.shadowY;
@@ -903,7 +924,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         delete this.volleyOwners[volley];
       }
     }
-    publicState(){return {movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    publicState(){return {quizMode:this.quizMode,movementMode:this.movementMode,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
@@ -992,7 +1013,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
   function resetToLobby(){audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='lobby';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('lobby');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
-    mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value):null;
+    mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();const ids=players||[0,1];const quizMode=kind==='local'&&$('question-mode').value==='year2'?'year2':'mixed';if(quizMode==='year2')year2Deck=[];engine=(kind==='local'||kind==='host')?new Game(ids,kind==='host',kind==='local'?savedProfiles:roomProfiles,$('movement-mode').value,quizMode):null;
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');$('room-chip').classList.toggle('hidden',kind==='local');$('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'LOCAL':`P${myId+1} · ONLINE`;
@@ -1626,7 +1647,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.8-50hp-aim-assist-ocean',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length,subjects:[...new Set(QUIZ_BANK.map(q=>q.subject))],version:'2.9-year2-english-auto-aim',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
