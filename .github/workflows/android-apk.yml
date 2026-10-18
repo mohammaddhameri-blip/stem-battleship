@@ -8,6 +8,7 @@ on:
       - 'index.html'
       - 'audio-engine.js'
       - 'question-ms.js'
+      - 'advanced-questions.js'
       - 'rbt-questions.js'
       - 'naval-theme.css'
       - 'naval-scene.svg'
@@ -98,11 +99,12 @@ jobs:
       - name: Bundle current game for offline local play
         run: |
           mkdir -p android/app/src/main/assets/game
-          cp index.html audio-engine.js question-ms.js rbt-questions.js naval-theme.css naval-scene.svg manifest.webmanifest android/app/src/main/assets/game/
+          cp index.html audio-engine.js question-ms.js advanced-questions.js rbt-questions.js naval-theme.css naval-scene.svg manifest.webmanifest android/app/src/main/assets/game/
           cp -R icons android/app/src/main/assets/game/
           test -s android/app/src/main/assets/game/index.html
           test -s android/app/src/main/assets/game/audio-engine.js
           test -s android/app/src/main/assets/game/question-ms.js
+          test -s android/app/src/main/assets/game/advanced-questions.js
           test -s android/app/src/main/assets/game/naval-theme.css
           test -s android/app/src/main/assets/game/rbt-questions.js
 
