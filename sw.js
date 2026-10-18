@@ -4,7 +4,7 @@
  * permits same-device play with the 238 fixed multiple-choice questions,
  * generated multiple-choice Maths, the restored aiming slider, Auto/Manual movement, Pass to Play timed turns (30/45/60/75s) with randomly varying Auto Roam speeds, standalone Workshop and Save button, Fit Screen, cinematic B-2 shadow, simultaneous two-player controls, smartboard Fit Screen, 50 HP battleships, optional aiming guides, rough ocean and improved shell collision, and original audio.
  */
-const CACHE='steam-battleship-shell-v3.2.0';
+const CACHE='steam-battleship-shell-v3.3.0';
 const SHELL=['./','./index.html','./audio-engine.js','./naval-theme.css','./naval-scene.svg','./manifest.webmanifest','./icons/steam-battleship.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>Promise.all(
