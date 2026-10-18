@@ -397,6 +397,16 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 .pass-clock{font-variant-numeric:tabular-nums;border:1px solid #4ee3ce;border-radius:8px;background:#0c424c;color:#d6fff7;font-size:21px;font-weight:1000;min-width:83px;text-align:center;padding:6px 12px}
 .pass-clock.urgent{color:#ffe5a3;border-color:#ffa659;background:#593429}
 @media(max-width:600px){.workshop-save-actions{justify-content:center}.workshop-launch{flex-wrap:wrap}.turn-choice-row{gap:5px}.turn-choice-row span{font-size:17px;min-height:50px}}
+
+/* Online: the host alone owns the turn order and countdown. */
+.online-turn-status{padding:6px 9px;font-size:11px;letter-spacing:.8px;color:#b8f2ef;font-weight:900}
+.online-turn-clock{border:1px solid #3fd4c0;color:#d8fffb;background:#0e4049;border-radius:8px;padding:5px 10px;min-width:67px;text-align:center;font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
+.online-turn-clock.urgent{color:#ffd39e;border-color:#f3a466;background:#593429}
+.online-locked-note{color:#84e3d6;font-size:10px;line-height:1.6;font-weight:800;letter-spacing:.3px;padding:5px 0 11px}
+.online-wait-panel{padding:17px;border:1px solid #315979;background:#0d2b42;border-radius:11px;text-align:center;color:#b7dded;font-weight:900;letter-spacing:.6px;font-size:12px}
+#online-host-config [data-setting]:disabled,#waiting-host-config [data-setting]:disabled{cursor:not-allowed;accent-color:#426e79;opacity:.67}
+#battle .battle-metrics:has(.online-turn-status:not(.hidden)){display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+@media(max-width:640px){.online-turn-status{font-size:9px;padding:4px}.online-turn-clock{font-size:14px;padding:4px 7px;min-width:58px}.online-wait-panel{padding:11px;font-size:11px}}
 </style>
 <link rel="stylesheet" href="./naval-theme.css"/>
 </head>
@@ -462,7 +472,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 </section>
 <section class="waiting hidden" id="waiting"><div class="setup-card wait-box"><div aria-hidden="true" class="wait-spinner"></div><h2 id="wait-title">CREATING ROOM...</h2><div class="hidden" id="room-share"><div class="setup-label">YOUR ROOM CODE</div><div class="share-code" id="share-code">------</div><div class="invite-actions"><button class="secondary-btn" id="copy-invite" type="button">COPY LINK</button><button class="secondary-btn" id="share-invite" type="button">SHARE INVITE</button></div></div><p id="wait-status" role="status">Connecting to signaling service…</p><div id="room-roster" class="room-roster"></div><section class="host-config" id="waiting-host-config" data-host-config aria-label="Host game settings"><h3>⚙ P1 HOST · MATCH SETTINGS</h3><div class="config-toggle-row"><label class="config-check"><input type="checkbox" data-setting="aimAssist"> Aim assist</label><label class="config-check"><input type="checkbox" data-setting="autoRoam" checked> Auto roam</label><label class="config-check"><input type="checkbox" data-setting="fullManual"> Full Manual · 1Q = 1 action</label></div><div class="config-group"><span class="config-group-title">QUESTION SUBJECTS</span><div class="config-checkboxes"><label class="config-check"><input type="checkbox" data-topic="science-life" checked> Science · Living things</label><label class="config-check"><input type="checkbox" data-topic="science-plants" checked> Science · Plants</label><label class="config-check"><input type="checkbox" data-topic="science-matter" checked> Science · Materials</label><label class="config-check"><input type="checkbox" data-topic="science-energy" checked> Science · Energy & forces</label><label class="config-check"><input type="checkbox" data-topic="math-add" checked> Maths · Add</label><label class="config-check"><input type="checkbox" data-topic="math-subtract" checked> Maths · Subtract</label><label class="config-check"><input type="checkbox" data-topic="math-multiply" checked> Maths · Multiply</label><label class="config-check"><input type="checkbox" data-topic="math-divide" checked> Maths · Divide</label><label class="config-check"><input type="checkbox" data-topic="math-percent" checked> Maths · Percentages</label><label class="config-check"><input type="checkbox" data-topic="math-measure" checked> Maths · Measurement</label><label class="config-check"><input type="checkbox" data-topic="english-vocab" checked> English · Vocabulary</label><label class="config-check"><input type="checkbox" data-topic="english-grammar" checked> English · Grammar</label></div></div><div class="config-group"><span class="config-group-title">QUESTION LEVELS</span><div class="config-checkboxes"><label class="config-check"><input type="checkbox" data-level="1" checked> Level 1 · Foundations</label><label class="config-check"><input type="checkbox" data-level="2" checked> Level 2 · Challenge</label></div></div><p class="config-note" role="status"></p></section><button id="start-match" class="primary-btn hidden" type="button">START MATCH</button><button class="back-link" id="cancel-wait" type="button">CANCEL</button></div></section>
 <section class="battle hidden" id="battle">
-<div class="battle-heading"><div></div><div class="battle-metrics"><span class="pass-clock hidden" id="pass-clock" role="timer">01:15</span><span class="room-chip hidden" id="room-chip">ROOM ------</span></div></div>
+<div class="battle-heading"><div></div><div class="battle-metrics"><span class="online-turn-status hidden" id="online-turn-status" role="status"></span><span class="online-turn-clock hidden" id="online-turn-clock" role="timer">01:15</span><span class="pass-clock hidden" id="pass-clock" role="timer">01:15</span><span class="room-chip hidden" id="room-chip">ROOM ------</span></div></div>
 <div class="scoreboard"><div class="fleet fleet-one" id="fleet-blue"></div><div class="score-vs">⚔</div><div class="fleet fleet-two" id="fleet-red"></div></div>
 <div class="sea-frame"><canvas aria-label="Battleship battlefield for up to six ships" height="640" id="battle-canvas" width="1200">A modern browser is required to display the battlefield.</canvas><div class="zoom-controls" role="group" aria-label="Battlefield view controls"><button type="button" id="aim-assist-btn" aria-label="Toggle aiming guide lines" aria-pressed="false" title="Show aiming guide lines">AIM OFF</button><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-fit" title="Fit entire battlefield" aria-label="Fit battlefield to screen">FIT · 50%</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></div><div aria-live="polite" class="battle-notice hidden" id="battle-notice" role="status"></div></div>
 
@@ -706,8 +716,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   class Game {
     constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null,randomAutoSpeed=false){
       this.quizMode=!online&&quizMode==='year2'?'year2':'mixed';
-      this.settings=normalizeMatchSettings(settings??{autoRoam:movementMode==='auto'});this.fullManual=this.settings.fullManual;
-       this.movementMode=this.settings.autoRoam?'auto':'manual';this.randomAutoSpeed=!online&&this.movementMode==='auto'&&randomAutoSpeed===true;this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
+      this.settings=normalizeMatchSettings(online?{...(settings||{}),aimAssist:false,autoRoam:true,fullManual:false}:settings??{autoRoam:movementMode==='auto'});this.fullManual=this.settings.fullManual;
+       this.movementMode=this.settings.autoRoam?'auto':'manual';this.randomAutoSpeed=this.movementMode==='auto'&&(online||randomAutoSpeed===true);this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
@@ -1044,7 +1054,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         delete this.volleyOwners[volley];
       }
     }
-    publicState(){return {quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    publicState(){return {onlineTurn:this.online&&onlineTurn?{
+      activeId:onlineTurn.activeId,phase:onlineTurn.phase,duration:onlineTurn.duration,
+      remainingMs:onlineTurn.phase==='playing'?Math.max(0,Math.ceil(onlineTurn.deadline-performance.now())):0
+    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
@@ -1053,6 +1066,50 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   let passDuration=(()=>{try{const n=Number(localStorage.getItem('stem-pass-turn-duration'));return PASS_DURATIONS.includes(n)?n:75;}catch(_){return 75;}})();
   let passActiveId=0,passReady=false,passDeadline=0,passWarned=false,passTimeLimit=75;
   let passPlayback=false,passPlaybackStartedAt=0;
+  // Online players stay on their own devices. The host coordinates one team
+  // at a time and rotates living captains within each team (up to 3v3).
+  let onlineTurn=null;
+  function createOnlineTurn(){
+    if(!engine||!engine.online)return null;
+    const first=engine.players.find(p=>p.hp>0);
+    if(!first)return null;
+    return {
+      activeId:first.id,phase:'playing',duration:passDuration,
+      deadline:performance.now()+passDuration*1000,playbackStartedAt:0,
+      lastByTeam:{0:-1,1:-1}
+    };
+  }
+  function nextOnlineTurn(){
+    if(mode!=='host'||!engine||!onlineTurn||engine.winner!==null)return;
+    const current=engine.player(onlineTurn.activeId);
+    if(current)onlineTurn.lastByTeam[current.team]=current.id;
+    // Team alternation is strict when both sides remain alive, even in 1v3.
+    const opposite=current?1-current.team:1;
+    const team=engine.alive(opposite).length?opposite:(current?.team??0);
+    const possible=engine.alive(team).slice().sort((a,b)=>a.id-b.id);
+    if(!possible.length)return;
+    const next=possible.find(p=>p.id>onlineTurn.lastByTeam[team])||possible[0];
+    onlineTurn.activeId=next.id;onlineTurn.phase='playing';
+    onlineTurn.deadline=performance.now()+onlineTurn.duration*1000;
+    onlineTurn.playbackStartedAt=0;engine.changed();
+  }
+  function tickOnlineTurn(now){
+    if(mode!=='host'||!engine||!onlineTurn||engine.winner!==null)return;
+    const turn=onlineTurn,active=engine.player(turn.activeId);
+    if(!active||active.hp<=0){nextOnlineTurn();return;}
+    if(turn.phase==='playing'){
+      if(now>=turn.deadline){engine.skipTurn(turn.activeId);nextOnlineTurn();}
+    }else if(turn.phase==='playback'){
+      // No new question appears until ALL flight and impact effects finish.
+      if(now-turn.playbackStartedAt>=750&&!engine.projectiles.length&&
+         !engine.airstrikes.length&&!engine.effects.length)nextOnlineTurn();
+    }
+  }
+  function onlineTurnValid(id){
+    return mode==='host'&&engine?.online&&onlineTurn?.phase==='playing'&&
+      onlineTurn.activeId===id&&performance.now()<onlineTurn.deadline&&
+      engine.player(id)?.hp>0&&engine.winner===null;
+  }
   function beginPassPlayback(){
     if(mode!=='pass'||!engine)return;
     passPlayback=true;passPlaybackStartedAt=performance.now();
@@ -1105,13 +1162,23 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   function syncHostSettings(){
     const v=matchSettings;
     document.querySelectorAll('[data-host-config]').forEach(panel=>{
-      panel.querySelectorAll('[data-setting]').forEach(x=>x.checked=!!v[x.dataset.setting]);
+      const onlinePanel=panel.id==='online-host-config'||panel.id==='waiting-host-config';
+      panel.querySelectorAll('[data-setting]').forEach(x=>{
+        x.disabled=onlinePanel;
+        x.checked=onlinePanel?(x.dataset.setting==='autoRoam'):!!v[x.dataset.setting];
+        if(onlinePanel)x.title='Locked in Online Match';
+      });
       panel.querySelectorAll('[data-topic]').forEach(x=>x.checked=v.topics.includes(x.dataset.topic));
       panel.querySelectorAll('[data-level]').forEach(x=>x.checked=v.levels.includes(Number(x.dataset.level)));
     });
     $('workshop-host-config').classList.toggle('hidden',workshopSlot!==0);
     $('workshop-start').disabled=workshopSlot!==0;
     $('waiting-host-config').classList.toggle('hidden',mode!=='waiting'||myId!==0);
+    for(const id of ['online-host-config','waiting-host-config']){
+      const panel=$(id);let note=panel.querySelector('.online-locked-note');
+      if(!note){note=document.createElement('div');note.className='online-locked-note';panel.querySelector('h3')?.after(note);}
+      note.textContent='TURN-BASED · AUTO ROAM · AIM ASSIST LOCKED OFF · '+passDuration+'s/TURN';
+    }
   }
   function validateHostSettings(){
     const valid=matchSettings.topics.length>0&&matchSettings.levels.length>0;
@@ -1121,6 +1188,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   document.querySelectorAll('[data-host-config]').forEach(panel=>panel.addEventListener('change',event=>{
     const x=event.target;if(!(x instanceof HTMLInputElement))return;
     if(x.dataset.setting){
+      if(x.disabled)return;
       matchSettings[x.dataset.setting]=x.checked;
       if(x.checked&&x.dataset.setting==='fullManual')matchSettings.autoRoam=false;
       if(x.checked&&x.dataset.setting==='autoRoam')matchSettings.fullManual=false;
@@ -1147,13 +1215,16 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   const cameraScale=()=>zoomPercent/50;
   function updateAimAssist(){
     const button=$('aim-assist-btn');
-    const allowed=(visibleGameState||engine?.publicState())?.settings?.aimAssist!==false;
+    const state=visibleGameState||engine?.publicState();
+    const onlineGame=['host','guest','guest-disconnected'].includes(mode)||state?.online===true;
+    const allowed=!onlineGame&&state?.settings?.aimAssist!==false;
     button.disabled=!allowed;if(!allowed)aimAssistEnabled=false;
-    button.textContent=aimAssistEnabled?'AIM ON':'AIM OFF';
+    button.textContent=onlineGame?'AIM LOCKED':aimAssistEnabled?'AIM ON':'AIM OFF';
     button.setAttribute('aria-pressed',String(aimAssistEnabled));
-    button.title=aimAssistEnabled?'Hide aiming guide lines':'Show aiming guide lines';
+    button.title=onlineGame?'Aim assist cannot be enabled in Online Match':aimAssistEnabled?'Hide aiming guide lines':'Show aiming guide lines';
   }
   $('aim-assist-btn').addEventListener('click',()=>{
+    if(mode==='host'||mode==='guest'||mode==='guest-disconnected'||visibleGameState?.online)return;
     aimAssistEnabled=!aimAssistEnabled;
     updateAimAssist();
   });
@@ -1215,15 +1286,16 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){passPlayback=false;passPlaybackStartedAt=0;passReady=false;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');$('settings-overlay').classList.add('hidden');audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){onlineTurn=null;$('online-turn-status').classList.add('hidden');$('online-turn-clock').classList.add('hidden');passPlayback=false;passPlaybackStartedAt=0;passReady=false;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');$('settings-overlay').classList.add('hidden');audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
     mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();
     const ids=players||[0,1];
     const quizMode=['local','pass'].includes(kind)&&$('question-mode').value==='year2'?'year2':'mixed';
     if(quizMode==='year2')year2Deck=[];
-    const rules=kind==='pass'?normalizeMatchSettings({...readMatchSettings(),fullManual:false,autoRoam:true}):readMatchSettings(),botProfiles=[savedProfiles[0],cleanProfile({...savedProfiles[1],name:'CPU '+botDifficulty.toUpperCase()},1)];
+    const rules=['host','guest','guest-disconnected'].includes(kind)?normalizeMatchSettings({...readMatchSettings(),aimAssist:false,autoRoam:true,fullManual:false}):kind==='pass'?normalizeMatchSettings({...readMatchSettings(),fullManual:false,autoRoam:true}):readMatchSettings(),botProfiles=[savedProfiles[0],cleanProfile({...savedProfiles[1],name:'CPU '+botDifficulty.toUpperCase()},1)];
     const profiles=kind==='bot'?botProfiles:['local','pass'].includes(kind)?savedProfiles:roomProfiles;
     engine=['local','pass','host','bot'].includes(kind)?new Game(ids,kind==='host',profiles,$('movement-mode').value,quizMode,rules,kind==='pass'):null;
+    onlineTurn=kind==='host'?createOnlineTurn():null;
     botNextAt=0;matchAssistConfigured=false;aimAssistEnabled=rules.aimAssist;updateAimAssist();
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');
@@ -1231,7 +1303,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'SAME DEVICE':kind==='pass'?'PASS TO PLAY':kind==='bot'?`BOT · ${botDifficulty.toUpperCase()}`:`P${myId+1} · ONLINE`;
     controls.classList.toggle('single',kind!=='local');controls.classList.toggle('local-dual',kind==='local');
-    controls.innerHTML='';show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
+    controls.innerHTML='';$('online-turn-status').classList.toggle('hidden',!['host','guest'].includes(kind));$('online-turn-clock').classList.add('hidden');show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -1291,24 +1363,49 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function startOnlineMatch(){
     if(mode!=='waiting'||myId!==0||roster.length<2||!validateHostSettings())return;
-    const ids=[...roster];broadcast({type:'start',players:ids,movementMode:readMatchSettings().autoRoam?'auto':'manual',settings:readMatchSettings()});beginGame('host',ids);sendState();
+    const ids=[...roster],rules=normalizeMatchSettings({...readMatchSettings(),aimAssist:false,autoRoam:true,fullManual:false});
+    broadcast({type:'start',players:ids,movementMode:'auto',settings:rules,turnDuration:passDuration});
+    beginGame('host',ids);sendState();
   }
   function sendState(){if(mode==='host'&&engine){broadcast({type:'state',state:engine.publicState()});lastSent=performance.now();lastSentVersion=engine.version;}}
   function processAction(id,action,value){if(!engine)return;
+    if(mode==='host'&&!onlineTurnValid(id))return;
     const before=engine.player(id)?.stage;
     if(action==='answer')engine.answer(id,value);
     else if(action==='fire')engine.fire(id);
     else if(['move','aim','equip','target'].includes(action))engine.act(id,action,value);
     renderGameState(engine.publicState());
     if(mode==='pass'&&before==='armed'&&engine.player(id)?.stage==='question')beginPassPlayback();
+    if(mode==='host'&&before==='armed'&&engine.player(id)?.stage==='question'&&onlineTurn){
+      onlineTurn.phase='playback';onlineTurn.deadline=0;
+      onlineTurn.playbackStartedAt=performance.now();
+      engine.changed();
+      renderGameState(engine.publicState());
+    }
   }
   function doAction(id,action,value){if(!['host','guest','local','pass'].includes(mode))return;
+    if((mode==='host'||mode==='guest')&&(!getGameState()?.onlineTurn||getGameState().onlineTurn.phase!=='playing'||getGameState().onlineTurn.activeId!==id))return;
     if(mode==='pass'&&(!passReady||passPlayback||id!==passActiveId||performance.now()>=passDeadline))return;
     if(mode==='guest'){if(id===myId&&conn?.open)conn.send({type:'action',action,value});}
     else if(mode==='host'){if(id===0){processAction(id,action,value);sendState();}}
     else processAction(id,action,value);
   }
-  function getGameState(){return mode==='guest'?remoteState:engine?.publicState()||null;}
+  function getGameState(){return mode==='guest'||mode==='guest-disconnected'?remoteState:engine?.publicState()||null;}
+  function updateOnlineHud(now){
+    if(!['host','guest','guest-disconnected'].includes(mode))return;
+    const state=getGameState(),turn=state?.onlineTurn;
+    const label=$('online-turn-status'),clock=$('online-turn-clock');
+    if(!turn){label.textContent='WAITING FOR HOST';label.classList.remove('hidden');clock.classList.add('hidden');return;}
+    const active=state.players?.find(p=>p.id===turn.activeId);
+    const isMine=turn.activeId===myId,play=turn.phase==='playing';
+    label.textContent=play?(isMine?'YOUR TURN':(active?.profile?.name||'P'+(turn.activeId+1))+' · TURN'):'ATTACK IN PROGRESS';
+    label.classList.remove('hidden');
+    if(!play){clock.classList.add('hidden');return;}
+    const remaining=mode==='host'?Math.max(0,onlineTurn.deadline-now):
+      Math.max(0,turn.remainingMs-(now-lastRemoteSnapshotTime));
+    clock.textContent='00:'+String(Math.ceil(remaining/1000)).padStart(2,'0');
+    clock.classList.remove('hidden');clock.classList.toggle('urgent',remaining<=10000);
+  }
   function weaponButton(p,key){
     const w=AMMO[key],unlocked=key==='airstrike'?p.stock.airstrike>0:p.streak>=w.min,stock=p.stock[key];
     const available=unlocked&&(stock===-1||stock>0);
@@ -1348,6 +1445,19 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function renderPanels(s){
     if(!s)return;
+    if((mode==='host'||mode==='guest'||mode==='guest-disconnected')&&s.online){
+      const turn=s.onlineTurn,active=s.players.find(p=>p.id===turn?.activeId);
+      if(!turn||turn.phase!=='playing'||turn.activeId!==myId||active?.hp<=0){
+        const label=turn?.phase==='playback'?'ATTACK IN PROGRESS':
+          turn?'WAITING FOR '+esc(active?.profile?.name||('P'+(turn.activeId+1))):'WAITING FOR HOST';
+        if(controls.dataset.onlineWaiting!==label){
+          controls.innerHTML='<section class="online-wait-panel" role="status">'+label+'</section>';
+          controls.dataset.onlineWaiting=label;
+        }
+        return;
+      }
+      controls.dataset.onlineWaiting='';
+    }
     if(mode==='pass'&&(!passReady||passPlayback)){
       controls.innerHTML='';
       return;
@@ -1501,7 +1611,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
   }
   function paintAimAssist(s){
-    if(!aimAssistEnabled||!s||s.winner!==null)return;
+    if(!aimAssistEnabled||!s||s.online||s.winner!==null)return;
     ctx.save();
     ctx.beginPath();ctx.rect(ORIGIN_X,ORIGIN_Y,COLS*TILE,ROWS*TILE);ctx.clip();
     // The line should belong to the CURRENT captain, including P2.
@@ -1761,7 +1871,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const s=getGameState();if(!s||s.winner!==null)return;
     const {c,r}=worldEvent(e),col=Math.floor(c),row=Math.floor(r);
     if(col<0||col>=COLS||row<0||row>=ROWS)return;
-    const ids=mode==='local'?[0,1]:mode==='pass'&&passReady&&!passPlayback?[passActiveId]:mode==='pass'?[]:[myId];
+    const onlineActive=(mode==='host'||mode==='guest')&&getGameState()?.onlineTurn?.phase==='playing'&&getGameState().onlineTurn.activeId===myId;
+    const ids=mode==='local'?[0,1]:mode==='pass'&&passReady&&!passPlayback?[passActiveId]:mode==='pass'?[]:(mode==='host'||mode==='guest')&&!onlineActive?[]:[myId];
     // One adjacent tile per tap, including diagonals.
     for(const id of ids){const p=s.players.find(q=>q.id===id);if(!p||p.hp<=0)continue;
       if(s.movementMode!=='auto'&&(p.stage==='armed'||(!s.fullManual&&p.defenseOpen))&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
@@ -1821,9 +1932,9 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         else{v.x+=(targetX-v.x)*alpha;v.y+=(targetY-v.y)*alpha;}
       }
     }
-    if((mode==='local'||mode==='pass'||mode==='host'||mode==='bot')&&engine){tickBot(ts);engine.tick(dt);finishPassPlayback(ts);updatePassTimer(ts);const s=engine.publicState();renderGameState(s);
+    if((mode==='local'||mode==='pass'||mode==='host'||mode==='bot')&&engine){tickBot(ts);engine.tick(dt);finishPassPlayback(ts);updatePassTimer(ts);tickOnlineTurn(ts);const s=engine.publicState();renderGameState(s);
       if(mode==='host'&&connections.size&&(s.movementMode==='auto'||s.version!==lastSentVersion||s.projectiles.length>0||s.airstrikes.length>0||s.effects.length>0||s.players.some(p=>p.hp<=0&&p.sinkAge<5))&&ts-lastSent>80)sendState();}
-    drawScene(visibleGameState,ts);
+    updateOnlineHud(ts);drawScene(visibleGameState,ts);
   }
   requestAnimationFrame(frame);
 
@@ -1863,7 +1974,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('cancel-wait').addEventListener('click',resetToLobby);
   $('menu-btn').addEventListener('click',()=>{if(window.confirm('Leave the current match?'))resetToLobby();});
   $('end-menu-btn').addEventListener('click',resetToLobby);
-  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='pass'){beginGame('pass');}else if(mode==='bot'){beginGame('bot');}else if(mode==='host'){audio.start();engine=new Game(roster,true,roomProfiles,$('movement-mode').value,'mixed',readMatchSettings());lastUiVersion=-1;$('end-overlay').classList.add('hidden');renderGameState(engine.publicState());sendState();}});
+  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='pass'){beginGame('pass');}else if(mode==='bot'){beginGame('bot');}else if(mode==='host'){beginGame('host',roster);}});
   function roomInviteUrl(){
     // Always share the hosted web app, not an Android appassets:// offline URL.
     // This exact URL works on iOS Safari, Android Chrome and desktop browsers.
@@ -1940,7 +2051,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length+YEAR2_QUIZ.length,subjects:[...new Set([...QUIZ_BANK,...YEAR2_QUIZ].map(q=>q.subject))],version:'3.3-pass-animation-aim-fix',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length+YEAR2_QUIZ.length,subjects:[...new Set([...QUIZ_BANK,...YEAR2_QUIZ].map(q=>q.subject))],version:'3.4-online-turns-no-aim-assist',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
