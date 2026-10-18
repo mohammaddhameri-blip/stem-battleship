@@ -50,12 +50,50 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Restore signing key for in-place APK updates
-        id: debug-keystore-cache
+      - name: Restore the persistent APK signing certificate
+        id: signing-key-cache
         uses: actions/cache/restore@v4
         with:
           path: ~/.android/debug.keystore
-          key: steam-battleship-debug-keystore-v1
+          key: stem-battleship-stable-signer-v2
+
+      - name: Create or verify signing certificate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -s "$HOME/.android/debug.keystore" ]; then
+            # Never rotate the certificate silently: that makes Android reject
+            # in-place updates, as happened with previous temporary build keys.
+            LAST_NOTES=$(gh release view android-latest --json body --jq '.body' 2>/dev/null || true)
+            if echo "$LAST_NOTES" | grep -q '^APK_SIGNER_SHA256='; then
+              echo "::error::Persistent signer cache missing after it was published. Stop; restore the original keystore using a durable GitHub Actions secret."
+              exit 1
+            fi
+            keytool -genkeypair -noprompt \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 3072 -validity 10000 \
+              -dname "CN=STEM Battleship, OU=Education, O=MrDhameri, C=MY"
+          fi
+          test -s "$HOME/.android/debug.keystore"
+          SIGNER_HASH=$(keytool -list -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android -alias androiddebugkey \
+            | sed -n 's/^[[:space:]]*SHA256: //p' | head -n1 | tr -d ':')
+          if [ "${#SIGNER_HASH}" -ne 64 ]; then
+            echo "::error::Missing signer fingerprint"
+            exit 1
+          fi
+          echo "APK_SIGNER_SHA256=${SIGNER_HASH}" >> "$GITHUB_ENV"
+          echo "Signing certificate fingerprint: ${SIGNER_HASH}"
+
+      - name: Save persistent signing key BEFORE compiling
+        if: steps.signing-key-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: stem-battleship-stable-signer-v2
 
       - name: Bundle current game for offline local play
         run: |
@@ -88,12 +126,17 @@ jobs:
         working-directory: android
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Cache signing key for future app upgrades
-        if: steps.debug-keystore-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: steam-battleship-debug-keystore-v1
+      - name: Verify APK signature before publication
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          apksigner verify --print-certs "$APK" > apk-signature.txt
+          echo "APK signature:"
+          grep 'Signer #1 certificate SHA-256 digest:' apk-signature.txt
+          APK_HASH=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' apk-signature.txt | head -n1 | tr '[:lower:]' '[:upper:]')
+          if [ "$APK_HASH" != "$APK_SIGNER_SHA256" ]; then
+            echo "::error::APK was NOT signed with the persistent certificate"
+            exit 1
+          fi
 
       - name: Prepare APK
         run: |
@@ -126,6 +169,7 @@ jobs:
           # after the matching APK asset has finished uploading.
           gh release edit "$TAG" --notes "APK_VERSION_CODE=${APK_VERSION_CODE}
           APK_VERSION_NAME=${APK_VERSION_NAME}
+          APK_SIGNER_SHA256=${APK_SIGNER_SHA256}
 
           Installable Android test APK. Responsive portrait/landscape gameplay,
           latest online game and bundled offline version. Android 8+.
