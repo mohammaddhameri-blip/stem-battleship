@@ -1303,7 +1303,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'SAME DEVICE':kind==='pass'?'PASS TO PLAY':kind==='bot'?`BOT · ${botDifficulty.toUpperCase()}`:`P${myId+1} · ONLINE`;
     controls.classList.toggle('single',kind!=='local');controls.classList.toggle('local-dual',kind==='local');
-    controls.innerHTML='';$('online-turn-status').classList.toggle('hidden',!['host','guest'].includes(kind));$('online-turn-clock').classList.add('hidden');show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
+    controls.innerHTML='';controls.dataset.onlineWaiting='';$('online-turn-status').classList.toggle('hidden',!['host','guest'].includes(kind));$('online-turn-clock').classList.add('hidden');show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -1450,7 +1450,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       if(!turn||turn.phase!=='playing'||turn.activeId!==myId||active?.hp<=0){
         const label=turn?.phase==='playback'?'ATTACK IN PROGRESS':
           turn?'WAITING FOR '+esc(active?.profile?.name||('P'+(turn.activeId+1))):'WAITING FOR HOST';
-        if(controls.dataset.onlineWaiting!==label){
+        if(controls.dataset.onlineWaiting!==label||!controls.querySelector('.online-wait-panel')){
           controls.innerHTML='<section class="online-wait-panel" role="status">'+label+'</section>';
           controls.dataset.onlineWaiting=label;
         }
