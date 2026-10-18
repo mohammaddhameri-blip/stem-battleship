@@ -62,3 +62,166 @@ body{background:radial-gradient(ellipse at 80% 0%,#19456a 0%,transparent 53%),li
 #online-setup .host-config{margin-top:20px}
 #waiting .host-config{width:100%;text-align:left;margin:12px 0 18px}
 @media(max-width:700px){#main-menu{padding:18px;min-height:calc(100dvh - 53px);align-items:center;background-position:58% center}#main-menu:after{display:none}.menu-content{margin-top:15px;width:min(95%,420px)}.menu-title{font-size:clamp(38px,10vw,67px);margin:8px 0 26px}.menu-actions{gap:8px}.menu-action{min-height:51px;padding:9px 14px;gap:10px;font-size:13px}.menu-action.primary{font-size:17px}.menu-action .menu-symbol{font-size:20px}.menu-footer{font-size:9px}.bot-difficulties{grid-template-columns:1fr}.difficulty-card{padding:9px 13px}.difficulty-card strong{display:inline;margin-left:8px}.host-config{padding:11px}.config-check{font-size:11px;padding:7px 8px}.workshop-launch{justify-content:stretch}.workshop-launch .primary-btn{flex:1}}
+
+/* Mobile APK layout v3.07 — keep classroom Fit Screen intact on wide displays.
+ * The original battle grid hard-clips everything outside two height-limited rows.
+ * Phones instead get a stable battlefield plus properly scrollable quiz/actions. */
+@media (max-width:760px), (max-width:1024px) and (pointer:coarse) {
+  html,body{width:100%;max-width:100%;overscroll-behavior-x:none}
+  #main-menu{height:auto;min-height:calc(100dvh - 48px);overflow:visible;align-items:flex-start;padding:clamp(12px,3vw,18px) clamp(12px,3vw,18px) 35px}
+  #main-menu .menu-content{margin-top:0;width:min(100%,430px)}
+  #main-menu .menu-title{margin-block:9px 16px;font-size:clamp(32px,8vw,48px)}
+  #main-menu .menu-actions{gap:7px}
+  #main-menu .menu-action{min-height:44px;padding:8px 12px}
+  #main-menu .menu-footer{margin-top:12px}
+  body.game-active{height:100dvh;overflow:hidden}
+  body.game-active .app-shell,.app-shell:has(#battle:not(.hidden)){
+    height:100dvh;min-height:0;max-width:100%;overflow:hidden
+  }
+  body.game-active .app-shell main,.app-shell:has(#battle:not(.hidden)) main{
+    display:flex;flex:1;min-height:0;overflow:hidden
+  }
+  #battle:not(.hidden){
+    display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+    gap:7px;flex:1;min-height:0;height:100%;width:100%;
+    padding:4px max(6px,env(safe-area-inset-left)) max(10px,env(safe-area-inset-bottom));
+    overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;
+  }
+  #battle>.battle-heading{
+    display:flex;flex:0 0 auto;min-height:25px;max-height:none;
+    margin:0;overflow:visible
+  }
+  #battle>.scoreboard{
+    display:grid;flex:0 0 auto;min-height:32px;max-height:none;
+    margin:0;gap:6px
+  }
+  #battle>.sea-frame{
+    grid-area:auto;display:flex;position:sticky;top:0;z-index:4;
+    flex:0 0 auto;align-items:center;justify-content:center;
+    width:100%;height:auto;max-height:min(34dvh,300px);
+    min-height:0;aspect-ratio:1200 / 640;overflow:hidden;
+    border-radius:8px;outline:1px solid #137aac;background:#082943
+  }
+  #battle #battle-canvas{
+    display:block;width:100%;height:100%;max-width:100%;max-height:100%;
+    aspect-ratio:1200 / 640;object-fit:contain;touch-action:manipulation
+  }
+  #battle>.controls-grid,#battle>.controls-grid.single,#battle>.controls-grid.local-dual{
+    grid-area:auto;display:flex;flex:0 0 auto;flex-direction:column;
+    width:100%;max-width:100%;height:auto;min-height:0;gap:8px;
+    margin:0;overflow:visible
+  }
+  #battle .control-panel{
+    width:100%;max-width:100%;min-width:0;height:auto;min-height:0;
+    flex:0 0 auto;overflow:visible;border-radius:10px
+  }
+  #battle .console-top{min-height:34px;padding:7px 10px}
+  #battle .console-name{font-size:12px}
+  #battle .console-state{font-size:10px}
+  #battle .console-body,#battle .console-body:has(.quiz-options),#battle .armed-body{
+    display:flex;flex:0 0 auto;flex-direction:column;gap:9px;
+    width:100%;height:auto;min-height:0;padding:10px;
+    overflow:visible
+  }
+  #battle .question-text{
+    width:100%;height:auto;max-height:none;min-height:0;
+    margin:0;font-size:clamp(15px,4vw,19px);
+    line-height:1.35;overflow:visible;align-self:stretch;
+    overflow-wrap:anywhere;text-align:left
+  }
+  #battle .quiz-options{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:none;grid-auto-rows:minmax(48px,auto);
+    width:100%;height:auto;min-height:0;gap:7px;overflow:visible
+  }
+  #battle .quiz-option{
+    display:flex;align-items:center;justify-content:flex-start;
+    height:auto;min-height:48px;padding:9px 10px;
+    font-size:clamp(12px,3.3vw,16px);line-height:1.3;text-align:left;
+    overflow-wrap:anywhere
+  }
+  #battle .armed-body .control-box{
+    display:block;flex:0 0 auto;height:auto;min-height:0;
+    padding:7px 9px
+  }
+  #battle .aim-row{min-height:38px;gap:8px}
+  #battle .aim-slider{height:40px;min-height:40px;touch-action:pan-y}
+  #battle .aim-value{font-size:17px}
+  #battle .combat-row{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,.38fr);
+    align-items:stretch;gap:6px;height:auto;min-height:0
+  }
+  #battle .weapon-grid,#battle .weapon-grid:has(.weapon-btn:nth-child(5)){
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:none;grid-auto-rows:minmax(48px,auto);
+    height:auto;min-height:0;gap:5px
+  }
+  #battle .weapon-grid:has(.weapon-btn:nth-child(5)) .weapon-btn:last-child{grid-column:span 2}
+  #battle .weapon-btn{height:auto;min-height:48px;padding:7px 3px}
+  #battle .weapon-btn .weapon-title{font-size:clamp(10px,2.7vw,13px)}
+  #battle .weapon-btn .weapon-desc{font-size:10px}
+  #battle .fire-btn{height:auto;min-height:56px;padding:10px 4px;font-size:clamp(13px,3.4vw,17px)}
+  #battle .online-wait-panel{width:100%;padding:16px 10px}
+  #battle .zoom-controls{max-width:100%;gap:2px;padding:3px}
+  #battle .zoom-controls button{min-height:30px;min-width:30px;padding:5px}
+  .settings-overlay,.pass-overlay,.help-overlay,.end-overlay{
+    overflow-y:auto;overscroll-behavior-y:contain;
+    align-items:center;justify-items:center
+  }
+  .settings-card,.pass-card,.help-card,.end-card{
+    max-height:calc(100dvh - 24px);overflow-y:auto
+  }
+}
+/* Short landscape phones: battle on the left, independent scrollable controls on
+ * the right, with full-sized touch buttons instead of clipped half-height rows. */
+@media (orientation:landscape) and (max-width:1024px) and (max-height:650px) {
+  #main-menu{min-height:calc(100dvh - 45px);padding:8px 16px 30px}
+  #main-menu .menu-content{max-width:720px;width:100%}
+  #main-menu .menu-kicker{font-size:9px}
+  #main-menu .menu-title{font-size:clamp(25px,4vw,42px);margin:4px 0 8px}
+  #main-menu .menu-title span{display:inline}
+  #main-menu .menu-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;max-width:700px}
+  #main-menu .menu-action{min-height:39px;padding:5px 10px;font-size:11px}
+  #main-menu .menu-action.primary{font-size:13px}
+  #main-menu .menu-symbol{font-size:16px;min-width:20px}
+  #main-menu .menu-footer{margin:7px 0}
+  #battle:not(.hidden){
+    display:grid;grid-template-columns:minmax(0,1.18fr) minmax(230px,1fr);
+    grid-template-rows:auto auto minmax(0,1fr);
+    grid-template-areas:"heading heading" "scores scores" "sea panels";
+    align-items:stretch;justify-items:stretch;gap:4px;
+    padding:3px max(5px,env(safe-area-inset-left)) max(4px,env(safe-area-inset-bottom));
+    overflow:hidden;touch-action:auto
+  }
+  #battle>.battle-heading{grid-area:heading;min-height:0;max-height:25px}
+  #battle>.scoreboard{grid-area:scores;min-height:24px;max-height:none}
+  #battle>.sea-frame{
+    grid-area:sea;position:relative;top:auto;align-self:stretch;
+    flex:none;width:100%;height:100%;min-height:0;max-height:none;
+    aspect-ratio:auto;z-index:1
+  }
+  #battle #battle-canvas{width:100%;height:100%;max-height:100%;object-fit:contain}
+  #battle>.controls-grid,#battle>.controls-grid.single,#battle>.controls-grid.local-dual{
+    grid-area:panels;display:flex;flex-direction:column;
+    width:100%;height:100%;min-height:0;min-width:0;
+    gap:7px;overflow-x:hidden;overflow-y:auto;
+    overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;
+    touch-action:pan-y;padding:0 3px 9px 0
+  }
+  #battle .control-panel{flex:0 0 auto;width:100%;height:auto;overflow:visible}
+  #battle .console-body,#battle .console-body:has(.quiz-options),#battle .armed-body{height:auto;flex:0 0 auto}
+  #battle .question-text{font-size:clamp(13px,1.8vw,17px)}
+  #battle .quiz-option{min-height:44px;font-size:clamp(11px,1.45vw,14px)}
+  #battle .weapon-btn{min-height:44px}
+  #battle .fire-btn{min-height:48px}
+  #battle .zoom-controls{top:2px;right:2px}
+  #battle .zoom-controls button{min-height:26px;min-width:25px;padding:3px;font-size:10px}
+  #battle .zoom-controls #zoom-fit{min-width:58px}
+}
+/* Extremely small landscape phones: keep the game side-by-side, even at 320px tall. */
+@media (orientation:landscape) and (max-height:400px) and (max-width:750px) {
+  #battle:not(.hidden){grid-template-columns:minmax(0,1fr) minmax(205px,1fr)}
+  body.game-active .topbar{min-height:34px;padding-block:2px}
+  #battle>.scoreboard{min-height:20px}
+}
