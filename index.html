@@ -614,7 +614,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   // Github's path-filtered commit history automatically increments the shown
   // version on every future index.html change, ignoring cache-only commits.
   const VERSION_BASE_COMMIT='d8c91fadf8e15ae030aafb1dfa2e16f9e89ad739';
-  const VERSION_FALLBACK='3.15';
+  const VERSION_FALLBACK='3.16';
   let displayVersion=VERSION_FALLBACK;
   function formatVersion(changes){
     const serial=3+changes;return (3+Math.floor(serial/100))+'.'+String(serial%100).padStart(2,'0');
@@ -2226,6 +2226,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       profiles:savedProfiles.map((p,i)=>cleanProfile(p,i)),
       language:gameLanguage,
       turnDuration:passDuration,
+      passTeamSettings:{mode:passTeamMode?'team':'duel',blue:passBlueCount,red:passRedCount},
       matchSettings:normalizeMatchSettings(matchSettings)
     });
   }
@@ -2258,10 +2259,14 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       savedProfiles=Array.from({length:MAX_PLAYERS},(_,id)=>cleanProfile(v.profiles[id],id));
       gameLanguage=v.language==='ms'?'ms':'en';
       passDuration=PASS_DURATIONS.includes(Number(v.turnDuration))?Number(v.turnDuration):75;
+      passTeamMode=v.passTeamSettings?.mode==='team';
+      passBlueCount=[1,2,3].includes(Number(v.passTeamSettings?.blue))?Number(v.passTeamSettings.blue):2;
+      passRedCount=[1,2,3].includes(Number(v.passTeamSettings?.red))?Number(v.passTeamSettings.red):2;
       matchSettings=normalizeMatchSettings(v.matchSettings);
       persistProfiles();
       localStorage.setItem('stem-battleship-language',gameLanguage);
       localStorage.setItem('stem-pass-turn-duration',String(passDuration));
+      localStorage.setItem('stem-pass-team-settings-v1',JSON.stringify({mode:passTeamMode?'team':'duel',blue:passBlueCount,red:passRedCount}));
       localStorage.setItem('stem-match-config-v3',JSON.stringify(matchSettings));
       refreshWorkshop();syncHostSettings();applyLanguage();openSettings();
       $('settings-backup-status').textContent='Backup restored successfully.';
