@@ -10,7 +10,7 @@
   function mathQuestion(text){
     if(math[text])return math[text];
     let m;
-    if((m=/^What is (\d+)% of (\d+)\?$/.exec(text)))return 'Berapakah '+m[1]+'% daripada '+m[2]+'?';
+    if((m=/^What is (\d+(?:\.\d+)?)% of (\d+)\?$/.exec(text)))return 'Berapakah '+m[1]+'% daripada '+m[2]+'?';
     if((m=/^What is half of (\d+)\?$/.exec(text)))return 'Berapakah separuh daripada '+m[1]+'?';
     if((m=/^What is one-quarter of (\d+)\?$/.exec(text)))return 'Berapakah satu perempat daripada '+m[1]+'?';
     if((m=/^What is RM(\d+) \+ RM(\d+)\?$/.exec(text)))return 'Berapakah RM'+m[1]+' + RM'+m[2]+'?';
