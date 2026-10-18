@@ -27,9 +27,10 @@
     const isScience=subject==='science';
     const isMath=subject==='mathematics';
     if(!isScience&&!isMath)return question;
-    const text=isScience?(science[question.text]||question.text):mathQuestion(question.text);
-    const options=(question.options||[]).map(x=>isScience?(scienceOptions[String(x)]||String(x)):String(x));
-    return {...question,text,options,answer:isScience?(scienceOptions[String(question.answer)]||question.answer):question.answer};
+    const text=question.msText||(isScience?(science[question.text]||question.text):mathQuestion(question.text));
+    const dictionary=question.msOptions||{};
+    const options=(question.options||[]).map(x=>dictionary[String(x)]||(isScience?(scienceOptions[String(x)]||String(x)):String(x)));
+    return {...question,text,options,answer:dictionary[String(question.answer)]||(isScience?(scienceOptions[String(question.answer)]||question.answer):question.answer)};
   }
   global.STEMQuestionMS={translate,science,scienceOptions,math,mathQuestion};
 })(window);
