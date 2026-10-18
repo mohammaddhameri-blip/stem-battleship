@@ -388,6 +388,11 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 .turn-settings p{color:#a4c6d2;font-size:11px;line-height:1.6;margin:15px 0 0}
 .settings-done{width:100%;margin-top:12px}
 #settings-audio-btn{width:100%}
+#settings-download-apk{display:flex;justify-content:center;align-items:center;min-height:49px;width:100%;margin-top:10px;text-decoration:none;text-align:center}
+#settings-download-apk:hover,#settings-download-apk:focus-visible{border-color:#77e3ff;box-shadow:0 0 14px #13c6ff2b}
+.settings-apk-help{margin:7px 2px 2px;color:#a5c7d6;font-size:10px;line-height:1.5}
+.settings-overlay{overflow-y:auto;overscroll-behavior-y:contain}
+.settings-card{max-height:calc(100dvh - 24px);overflow-y:auto}
 .pass-card{text-align:center;padding:35px 26px}
 .pass-kicker{color:var(--teal);font-size:12px;font-weight:900;letter-spacing:2px}
 .pass-card h2{font-size:clamp(24px,5.5vw,42px);letter-spacing:.5px;line-height:1.18;overflow-wrap:anywhere;max-width:100%;margin:19px 0 6px}
@@ -588,6 +593,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 <label><input type="radio" name="pass-duration" value="75"><span>75s</span></label>
 </div><p>Ships roam with changing speeds. Answer once to fire or repair. The timer pauses for handover.</p></fieldset>
 <button class="secondary-btn" id="settings-audio-btn" type="button">♫ MUSIC & SOUND</button>
+<a class="secondary-btn" id="settings-download-apk" href="https://github.com/mohammaddhameri-blip/stem-battleship/releases/download/android-latest/STEAM-Battleship.apk" aria-label="Download the latest APK from GitHub">↓ Download the latest APK</a>
+<p class="settings-apk-help">Downloads the latest Android APK from GitHub. Android asks permission before installation.</p>
 <button class="secondary-btn" id="settings-backup-open" type="button">⇅ BACK UP / RESTORE DATA</button>
 <div class="settings-backup-panel hidden" id="settings-backup-panel">
   <p>Before reinstalling the APK, copy this text into Notes or another safe place. After reinstalling, paste it here and tap Restore.</p>
