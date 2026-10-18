@@ -129,7 +129,7 @@ jobs:
       - name: Verify APK signature before publication
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
-          apksigner verify --print-certs "$APK" > apk-signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" > apk-signature.txt
           echo "APK signature:"
           grep 'Signer #1 certificate SHA-256 digest:' apk-signature.txt
           APK_HASH=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' apk-signature.txt | head -n1 | tr '[:lower:]' '[:upper:]')
