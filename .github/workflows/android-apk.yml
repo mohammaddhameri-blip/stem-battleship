@@ -68,6 +68,22 @@ jobs:
           test -s android/app/src/main/assets/game/naval-theme.css
           test -s android/app/src/main/assets/game/rbt-questions.js
 
+      - name: Generate monotonically increasing Android version code
+        run: |
+          # Every successful Actions build receives a higher installable version.
+          # VersionCode is independent of the game's browser/cache version.
+          APK_VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
+          APK_VERSION_NAME=$(sed -n "s/.*const VERSION_FALLBACK='\\([^']*\\)'.*/\\1/p" index.html | head -n 1)
+          if [ -z "$APK_VERSION_NAME" ]; then
+            echo "Could not read app version from index.html"
+            exit 1
+          fi
+          sed -i -E "s/versionCode [0-9]+/versionCode ${APK_VERSION_CODE}/" android/app/build.gradle
+          sed -i -E "s/versionName '[^']+'/versionName '${APK_VERSION_NAME}'/" android/app/build.gradle
+          echo "APK_VERSION_CODE=$APK_VERSION_CODE" >> "$GITHUB_ENV"
+          echo "APK_VERSION_NAME=$APK_VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Building Android v$APK_VERSION_NAME (code $APK_VERSION_CODE)"
+
       - name: Compile installable debug APK
         working-directory: android
         run: gradle :app:assembleDebug --no-daemon --stacktrace
@@ -103,6 +119,14 @@ jobs:
             gh release create "$TAG" STEAM-Battleship.apk \
               --target "$GITHUB_SHA" \
               --title "STEAM Battleship Android (latest)" \
-              --notes "Installable Android test APK. Landscape, full screen, live game plus bundled offline version. Android 8+." \
+              --notes "Release metadata pending" \
               --prerelease
           fi
+          # Publish update metadata last: clients can only see a new version code
+          # after the matching APK asset has finished uploading.
+          gh release edit "$TAG" --notes "APK_VERSION_CODE=${APK_VERSION_CODE}
+          APK_VERSION_NAME=${APK_VERSION_NAME}
+
+          Installable Android test APK. Responsive portrait/landscape gameplay,
+          latest online game and bundled offline version. Android 8+.
+          The app checks this release on launch and asks before downloading an update."
