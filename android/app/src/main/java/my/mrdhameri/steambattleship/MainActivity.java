@@ -38,14 +38,14 @@ public class MainActivity extends Activity {
         gameView = new WebView(this);
         gameView.setBackgroundColor(Color.rgb(6, 16, 28));
         gameView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        gameView.setVerticalScrollBarEnabled(false);
+        gameView.setVerticalScrollBarEnabled(true);
         gameView.setHorizontalScrollBarEnabled(false);
 
         WebSettings settings = gameView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(true);
+        settings.setLoadWithOverviewMode(false); // Respect width=device-width, avoid shrinking mobile controls.
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
