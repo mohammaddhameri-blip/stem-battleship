@@ -1052,9 +1052,27 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   const PASS_DURATIONS=[30,45,60,75];
   let passDuration=(()=>{try{const n=Number(localStorage.getItem('stem-pass-turn-duration'));return PASS_DURATIONS.includes(n)?n:75;}catch(_){return 75;}})();
   let passActiveId=0,passReady=false,passDeadline=0,passWarned=false,passTimeLimit=75;
+  let passPlayback=false,passPlaybackStartedAt=0;
+  function beginPassPlayback(){
+    if(mode!=='pass'||!engine)return;
+    passPlayback=true;passPlaybackStartedAt=performance.now();
+    passReady=false;passDeadline=0;
+    $('pass-clock').classList.add('hidden');
+    // Next question belongs to the following turn; hide it during the animation.
+    controls.innerHTML='';
+  }
+  function finishPassPlayback(now){
+    if(mode!=='pass'||!passPlayback||!engine)return;
+    if(engine.winner!==null)return; // Show the win sequence, not another handover.
+    // Only hand over once the complete attack and impact effects have finished.
+    if(now-passPlaybackStartedAt<750||engine.projectiles.length||
+       engine.airstrikes.length||engine.effects.length)return;
+    passPlayback=false;
+    advancePassTurn();
+  }
   function showPassHandover(){
     if(mode!=='pass'||!engine||engine.winner!==null)return;
-    passReady=false;passDeadline=0;passWarned=false;
+    passReady=false;passDeadline=0;passWarned=false;passPlayback=false;
     const p=engine.player(passActiveId);
     $('pass-team').textContent=passActiveId===0?'TEAM BLUE':'TEAM RED';
     $('pass-captain').textContent=p?.profile?.name||'';
@@ -1063,14 +1081,14 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function advancePassTurn(){if(mode!=='pass'||!engine||engine.winner!==null)return;passActiveId=1-passActiveId;showPassHandover();}
   function updatePassTimer(now){
-    if(mode!=='pass'||!passReady||!engine||engine.winner!==null)return;
+    if(mode!=='pass'||!passReady||passPlayback||!engine||engine.winner!==null)return;
     const remaining=Math.max(0,Math.ceil((passDeadline-now)/1000)),clock=$('pass-clock');
     clock.textContent='00:'+String(remaining).padStart(2,'0');clock.classList.toggle('urgent',remaining<=10);
     if(remaining<=10&&!passWarned){passWarned=true;tone(850,.13,'square',.04);}
     if(passDeadline<=now){engine.skipTurn(passActiveId);advancePassTurn();renderGameState(engine.publicState());}
   }
   function startPassTurn(){
-    if(mode!=='pass'||!engine||engine.winner!==null)return;
+    if(mode!=='pass'||!engine||engine.winner!==null||passPlayback)return;
     passReady=true;passWarned=false;passDeadline=performance.now()+passTimeLimit*1000;
     $('pass-overlay').classList.add('hidden');$('pass-clock').classList.remove('hidden');
     updatePassTimer(performance.now());renderPanels(engine.publicState());
@@ -1197,7 +1215,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){passReady=false;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');$('settings-overlay').classList.add('hidden');audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){passPlayback=false;passPlaybackStartedAt=0;passReady=false;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');$('settings-overlay').classList.add('hidden');audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
     mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();
     const ids=players||[0,1];
@@ -1213,7 +1231,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'SAME DEVICE':kind==='pass'?'PASS TO PLAY':kind==='bot'?`BOT · ${botDifficulty.toUpperCase()}`:`P${myId+1} · ONLINE`;
     controls.classList.toggle('single',kind!=='local');controls.classList.toggle('local-dual',kind==='local');
-    controls.innerHTML='';show('battle');fitCanvas();audio.start();passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
+    controls.innerHTML='';show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -1282,10 +1300,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     else if(action==='fire')engine.fire(id);
     else if(['move','aim','equip','target'].includes(action))engine.act(id,action,value);
     renderGameState(engine.publicState());
-    if(mode==='pass'&&before==='armed'&&engine.player(id)?.stage==='question'&&engine.winner===null)advancePassTurn();
+    if(mode==='pass'&&before==='armed'&&engine.player(id)?.stage==='question')beginPassPlayback();
   }
   function doAction(id,action,value){if(!['host','guest','local','pass'].includes(mode))return;
-    if(mode==='pass'&&(!passReady||id!==passActiveId||performance.now()>=passDeadline))return;
+    if(mode==='pass'&&(!passReady||passPlayback||id!==passActiveId||performance.now()>=passDeadline))return;
     if(mode==='guest'){if(id===myId&&conn?.open)conn.send({type:'action',action,value});}
     else if(mode==='host'){if(id===0){processAction(id,action,value);sendState();}}
     else processAction(id,action,value);
@@ -1330,6 +1348,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function renderPanels(s){
     if(!s)return;
+    if(mode==='pass'&&(!passReady||passPlayback)){
+      controls.innerHTML='';
+      return;
+    }
     const ids=mode==='local'?[0,1]:mode==='pass'?[passActiveId]:[myId];
     for(const child of [...controls.children])if(!ids.includes(Number(child.dataset.player)))child.remove();
     ids.forEach(id=>{
@@ -1374,7 +1396,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
   }
   function renderFleet(s){for(const team of [0,1]){$(team===0?'fleet-blue':'fleet-red').innerHTML=s.players.filter(p=>p.team===team).map(p=>`<span class="ship-hp ${p.hp<=0?'ship-knocked':''}">${esc(p.profile?.name||`P${p.id+1}`)}<span class="hp-small"><i style="width:${p.hp/MAX_HP*100}%"></i></span><b>${Math.ceil(p.hp)}</b></span>`).join('');}}
-  function endMatch(s){$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');passReady=false;audio.stop();audio.sfx('victory');$('winner-heading').textContent=mode==='bot'?(s.winner===0?'YOU WIN!':'BOT WINS'):`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
+  function endMatch(s){$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');passReady=false;passPlayback=false;audio.stop();audio.sfx('victory');$('winner-heading').textContent=mode==='bot'?(s.winner===0?'YOU WIN!':'BOT WINS'):`${s.winner===0?'BLUE':'RED'} TEAM WINS`;
     $('end-reason').textContent='All opposing battleships have been sunk.';
     $('end-stats').innerHTML=s.players.map(p=>`<div>${esc(p.profile?.name||`P${p.id+1}`)}<br><strong>${p.correct} / ${p.answered}</strong><br>correct<br><strong>${p.shots}</strong><br>shots</div>`).join('');
     $('rematch-btn').classList.toggle('hidden',mode==='guest');$('end-overlay').classList.remove('hidden');
@@ -1482,7 +1504,9 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(!aimAssistEnabled||!s||s.winner!==null)return;
     ctx.save();
     ctx.beginPath();ctx.rect(ORIGIN_X,ORIGIN_Y,COLS*TILE,ROWS*TILE);ctx.clip();
-    for(const p of s.players){
+    // The line should belong to the CURRENT captain, including P2.
+    const aimPlayers=mode==='pass'?(passReady&&!passPlayback?s.players.filter(p=>p.id===passActiveId):[]):s.players;
+    for(const p of aimPlayers){
       if(p.hp<=0||p.stage!=='armed'||p.lastCorrect===false||p.ammo==='repair'||p.ammo==='airstrike')continue;
       const place=position(p),rad=p.angle*Math.PI/180;
       const dx=Math.sin(rad),dy=-Math.cos(rad);
@@ -1493,10 +1517,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const start=PROJECT(place.x+dx*.38,place.y+dy*.38);
       const end=PROJECT(place.x+dx*distance,place.y+dy*distance);
       ctx.beginPath();ctx.moveTo(start.x,start.y);ctx.lineTo(end.x,end.y);
-      ctx.lineWidth=2.4;ctx.strokeStyle=p.team===0?'rgba(129,230,252,.78)':'rgba(255,170,192,.78)';
+      ctx.lineWidth=mode==='pass'?3.8:2.4;ctx.strokeStyle=p.team===0?'rgba(129,230,252,.9)':'rgba(255,188,115,.98)';
       ctx.setLineDash([10,10]);ctx.stroke();ctx.setLineDash([]);
       ctx.beginPath();ctx.arc(end.x,end.y,4.5,0,Math.PI*2);
-      ctx.strokeStyle=p.team===0?'#8ddff2':'#ffd2df';ctx.lineWidth=1.4;ctx.stroke();
+      ctx.strokeStyle=p.team===0?'#8ddff2':'#ffe2a2';ctx.lineWidth=mode==='pass'?2:1.4;ctx.stroke();
     }
     ctx.restore();
   }
@@ -1737,7 +1761,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const s=getGameState();if(!s||s.winner!==null)return;
     const {c,r}=worldEvent(e),col=Math.floor(c),row=Math.floor(r);
     if(col<0||col>=COLS||row<0||row>=ROWS)return;
-    const ids=mode==='local'?[0,1]:mode==='pass'&&passReady?[passActiveId]:mode==='pass'?[]:[myId];
+    const ids=mode==='local'?[0,1]:mode==='pass'&&passReady&&!passPlayback?[passActiveId]:mode==='pass'?[]:[myId];
     // One adjacent tile per tap, including diagonals.
     for(const id of ids){const p=s.players.find(q=>q.id===id);if(!p||p.hp<=0)continue;
       if(s.movementMode!=='auto'&&(p.stage==='armed'||(!s.fullManual&&p.defenseOpen))&&Math.max(Math.abs(col-p.col),Math.abs(row-p.row))===1&&within(p.team,col,row)){
@@ -1797,7 +1821,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         else{v.x+=(targetX-v.x)*alpha;v.y+=(targetY-v.y)*alpha;}
       }
     }
-    if((mode==='local'||mode==='pass'||mode==='host'||mode==='bot')&&engine){tickBot(ts);engine.tick(dt);updatePassTimer(ts);const s=engine.publicState();renderGameState(s);
+    if((mode==='local'||mode==='pass'||mode==='host'||mode==='bot')&&engine){tickBot(ts);engine.tick(dt);finishPassPlayback(ts);updatePassTimer(ts);const s=engine.publicState();renderGameState(s);
       if(mode==='host'&&connections.size&&(s.movementMode==='auto'||s.version!==lastSentVersion||s.projectiles.length>0||s.airstrikes.length>0||s.effects.length>0||s.players.some(p=>p.hp<=0&&p.sinkAge<5))&&ts-lastSent>80)sendState();}
     drawScene(visibleGameState,ts);
   }
@@ -1916,7 +1940,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length+YEAR2_QUIZ.length,subjects:[...new Set([...QUIZ_BANK,...YEAR2_QUIZ].map(q=>q.subject))],version:'3.2-pass-random-auto-roam',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length+YEAR2_QUIZ.length,subjects:[...new Set([...QUIZ_BANK,...YEAR2_QUIZ].map(q=>q.subject))],version:'3.3-pass-animation-aim-fix',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
