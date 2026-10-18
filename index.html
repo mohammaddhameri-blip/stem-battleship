@@ -483,7 +483,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 <label><input type="radio" name="pass-duration" value="45"><span>45s</span></label>
 <label><input type="radio" name="pass-duration" value="60"><span>60s</span></label>
 <label><input type="radio" name="pass-duration" value="75"><span>75s</span></label>
-</div><p>One question, one action. The countdown pauses between teams.</p></fieldset>
+</div><p>Ships roam with changing speeds. Answer once to fire or repair. The timer pauses for handover.</p></fieldset>
 <button class="secondary-btn" id="settings-audio-btn" type="button">♫ MUSIC & SOUND</button>
 <button class="primary-btn settings-done" id="settings-done" type="button">DONE</button>
 </div></div>
@@ -704,10 +704,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function makePlayer(id,team,col,row,profile,quizMode='mixed',settings=null){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:3,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode,settings),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
-    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null){
+    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null,randomAutoSpeed=false){
       this.quizMode=!online&&quizMode==='year2'?'year2':'mixed';
       this.settings=normalizeMatchSettings(settings??{autoRoam:movementMode==='auto'});this.fullManual=this.settings.fullManual;
-       this.movementMode=this.settings.autoRoam?'auto':'manual';this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
+       this.movementMode=this.settings.autoRoam?'auto':'manual';this.randomAutoSpeed=!online&&this.movementMode==='auto'&&randomAutoSpeed===true;this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
@@ -727,9 +727,20 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
     moveAuto(dt){
       if(this.movementMode!=='auto'||this.winner!==null||dt<=0)return;
-      const speed=.38; // Slower, smoothly gliding ships give pupils time to aim.
+      const speed=.38; // Existing fixed speed remains for all other modes.
       for(const p of this.players){
         if(p.hp<=0)continue;
+        if(this.randomAutoSpeed){
+          // Each ship independently changes its cruise speed every 2.5–5.5s.
+          // Ease changes to avoid sudden jerks while pupils aim.
+          if(!Number.isFinite(p.roamSpeedChangeIn)||p.roamSpeedChangeIn<=0){
+            p.roamSpeedTarget=.23+Math.random()*.39;
+            p.roamSpeedChangeIn=2.5+Math.random()*3;
+            if(!Number.isFinite(p.roamSpeed))p.roamSpeed=p.roamSpeedTarget;
+          }
+          p.roamSpeedChangeIn-=dt;
+          p.roamSpeed+=(p.roamSpeedTarget-p.roamSpeed)*(1-Math.exp(-dt*1.15));
+        }
         const xmin=p.team===0?.65:SPLIT+.65;
         const xmax=p.team===0?SPLIT-.65:COLS-.65;
         const ymin=.65,ymax=ROWS-.65;
@@ -751,7 +762,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         }
         magnitude=Math.hypot(dx,dy)||1;
         const ease=1-Math.exp(-dt*(radio?4:2.2));
-        const chosenSpeed=radio?.48:speed;
+        const chosenSpeed=this.randomAutoSpeed?p.roamSpeed:(radio?.48:speed);
         p.vx+=(dx/magnitude*chosenSpeed-p.vx)*ease;
         p.vy+=(dy/magnitude*chosenSpeed-p.vy)*ease;
         p.x=CLAMP(p.x+p.vx*dt,xmin,xmax);
@@ -1192,9 +1203,9 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const ids=players||[0,1];
     const quizMode=['local','pass'].includes(kind)&&$('question-mode').value==='year2'?'year2':'mixed';
     if(quizMode==='year2')year2Deck=[];
-    const rules=kind==='pass'?normalizeMatchSettings({...readMatchSettings(),fullManual:true,autoRoam:false}):readMatchSettings(),botProfiles=[savedProfiles[0],cleanProfile({...savedProfiles[1],name:'CPU '+botDifficulty.toUpperCase()},1)];
+    const rules=kind==='pass'?normalizeMatchSettings({...readMatchSettings(),fullManual:false,autoRoam:true}):readMatchSettings(),botProfiles=[savedProfiles[0],cleanProfile({...savedProfiles[1],name:'CPU '+botDifficulty.toUpperCase()},1)];
     const profiles=kind==='bot'?botProfiles:['local','pass'].includes(kind)?savedProfiles:roomProfiles;
-    engine=['local','pass','host','bot'].includes(kind)?new Game(ids,kind==='host',profiles,$('movement-mode').value,quizMode,rules):null;
+    engine=['local','pass','host','bot'].includes(kind)?new Game(ids,kind==='host',profiles,$('movement-mode').value,quizMode,rules,kind==='pass'):null;
     botNextAt=0;matchAssistConfigured=false;aimAssistEnabled=rules.aimAssist;updateAimAssist();
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
     $('end-overlay').classList.add('hidden');$('menu-btn').classList.remove('hidden');
@@ -1905,7 +1916,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('help-overlay').addEventListener('click',e=>{if(e.target.id==='help-overlay')$('help-overlay').classList.add('hidden');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help-overlay').classList.add('hidden');});
   // Expose game configuration only for classroom customization and diagnostic tests.
-  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length+YEAR2_QUIZ.length,subjects:[...new Set([...QUIZ_BANK,...YEAR2_QUIZ].map(q=>q.subject))],version:'3.1-pass-to-play-workshop',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
+  window.STEMBattleship={weapons:AMMO,questionBankSize:QUIZ_BANK.length+YEAR2_QUIZ.length,subjects:[...new Set([...QUIZ_BANK,...YEAR2_QUIZ].map(q=>q.subject))],version:'3.2-pass-random-auto-roam',Game,get COLS(){return COLS},get ROWS(){return ROWS},PROJECT,unproject,getState:getGameState};
 })();
 
 
