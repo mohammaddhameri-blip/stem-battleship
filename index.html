@@ -642,7 +642,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(id>0 && profile.name===defaultProfile(0).name && PAINT_KEYS.every(k=>profile.colors[k]===THEMES.ocean[k]))return defaultProfile(id);
     return profile;
   }
-  function loadProfiles(){try{const data=JSON.parse(localStorage.getItem('stem-ship-workshop-v1'));if(Array.isArray(data))return [cleanProfile(data[0],0),cleanProfile(data[1],1)];}catch(_e){}return [defaultProfile(0),defaultProfile(1)];}
+  function loadProfiles(){try{const data=JSON.parse(localStorage.getItem('stem-ship-workshop-v1'));if(Array.isArray(data))return Array.from({length:MAX_PLAYERS},(_,id)=>cleanProfile(data[id],id));}catch(_e){}return Array.from({length:MAX_PLAYERS},(_,id)=>defaultProfile(id));}
   let savedProfiles=loadProfiles(),workshopSlot=0,roomProfiles={};
   function persistProfiles(){try{localStorage.setItem('stem-ship-workshop-v1',JSON.stringify(savedProfiles));}catch(_e){}}
   function darken(hex,mult){const n=parseInt(hex.slice(1),16);return '#'+[16,8,0].map(shift=>Math.round(((n>>shift)&255)*mult).toString(16).padStart(2,'0')).join('');}
@@ -830,10 +830,10 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function makePlayer(id,team,col,row,profile,quizMode='mixed',settings=null){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:0,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode,settings),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
-    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null,randomAutoSpeed=false){
+    constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null,randomAutoSpeed=false,friendlyFire=false){
       this.quizMode=!online&&quizMode==='year2'?'year2':'mixed';
       this.settings=normalizeMatchSettings(online?{...(settings||{}),aimAssist:false,autoRoam:true,fullManual:false}:settings??{autoRoam:movementMode==='auto'});this.fullManual=this.settings.fullManual;
-       this.movementMode=this.settings.autoRoam?'auto':'manual';this.randomAutoSpeed=this.movementMode==='auto'&&(online||randomAutoSpeed===true);this.online=online;this.ids=[...ids].sort((a,b)=>a-b);
+       this.movementMode=this.settings.autoRoam?'auto':'manual';this.randomAutoSpeed=this.movementMode==='auto'&&(online||randomAutoSpeed===true);this.online=online;this.friendlyFire=!!friendlyFire;this.lastAttackedByTeam=[null,null];this.ids=[...ids].sort((a,b)=>a-b);
       const counts=[0,1].map(t=>this.ids.filter(id=>id%2===t).length);
       if(this.ids.length<2||this.ids.length>MAX_PLAYERS||!counts[0]||!counts[1]||counts.some(x=>x>3))throw new Error('Invalid team count');
       setBoard(Math.max(...counts));
@@ -1039,7 +1039,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       if(ammo==='flak')[-15,0,15].forEach(d=>this.projectile(p,'flak',angle,volley,d));
       else if(ammo==='airstrike'){
         // The airstrike finds an opposing ship even after a wrong answer.
-        const target=this.closestEnemy(p);
+        const previous=this.player(this.lastAttackedByTeam[p.team]);
+        const target=this.friendlyFire&&previous?.hp>0?previous:this.closestEnemy(p);
         if(target)this.airstrikes.push({
           owner:id,team:p.team,volley,targetId:target.id,
           age:0,dropped:false,missileHit:false,
@@ -1067,6 +1068,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
     impact(b,target){
       const inflicted=Math.min(target.hp,b.damage);target.hp=Math.max(0,target.hp-b.damage);this.player(b.owner).hits++;
+      if(this.friendlyFire)this.lastAttackedByTeam[b.team]=target.id;
       if(this.volleyOwners[b.volley])this.volleyOwners[b.volley].hit=true;
       this.effects.push({type:'boom',x:b.x,y:b.y,age:0,life:b.type==='airstrike'?1.25:.65,size:b.type==='airstrike'?2.0:.7});
       if(b.type==='airstrike')this.effects.push({type:'airstrike-ring',x:b.x,y:b.y,age:0,life:1.15,size:2.4});
@@ -1163,7 +1165,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         for(let i=0;i<steps;i++){
           const beforeX=b.x,beforeY=b.y;
           b.x+=b.vx*dt/steps;b.y+=b.vy*dt/steps;
-          const targets=b.homing?this.enemy(b.team).filter(q=>q.id===b.targetId):this.enemy(b.team);
+          const targets=b.homing?this.players.filter(q=>q.hp>0&&q.id===b.targetId):(this.friendlyFire?this.players.filter(q=>q.hp>0&&q.id!==b.owner):this.enemy(b.team));
           const target=targets.find(q=>this.hullHit(beforeX,beforeY,b.x,b.y,q));
           if(target){this.impact(b,target);remove.add(b.id);ended.add(b.volley);break;}
         }
@@ -1197,7 +1199,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     publicState(){return {onlineTurn:this.online&&onlineTurn?{
       activeId:onlineTurn.activeId,phase:onlineTurn.phase,duration:onlineTurn.duration,
       remainingMs:onlineTurn.phase==='playing'?Math.max(0,Math.ceil(onlineTurn.deadline-performance.now())):0
-    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,subject:p.question.subject,topic:p.question.topic,msText:p.question.msText,msOptions:p.question.msOptions,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),weaponUnlocks:this.weaponUnlocks.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,friendlyFire:this.friendlyFire,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,subject:p.question.subject,topic:p.question.topic,msText:p.question.msText,msOptions:p.question.msOptions,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),weaponUnlocks:this.weaponUnlocks.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
@@ -1206,6 +1208,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   let gameLanguage=(()=>{try{return localStorage.getItem('stem-battleship-language')==='ms'?'ms':'en';}catch(_){return 'en';}})();
   let passDuration=(()=>{try{const n=Number(localStorage.getItem('stem-pass-turn-duration'));return PASS_DURATIONS.includes(n)?n:75;}catch(_){return 75;}})();
   let passActiveId=0,passReady=false,passDeadline=0,passWarned=false,passTimeLimit=75;
+  let passTeamMode=false,passPlayers=[0,1],passBlueCount=2,passRedCount=2,passLastByTeam={0:-1,1:-1};
+  try{const v=JSON.parse(localStorage.getItem('stem-pass-team-settings-v1')||'{}');passTeamMode=v.mode==='team';passBlueCount=[1,2,3].includes(Number(v.blue))?Number(v.blue):2;passRedCount=[1,2,3].includes(Number(v.red))?Number(v.red):2;}catch(_){}
   let passPlayback=false,passPlaybackStartedAt=0;
   // Online players stay on their own devices. The host coordinates one team
   // at a time and rotates living captains within each team (up to 3v3).
@@ -1278,7 +1282,16 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('pass-overlay').classList.remove('hidden');$('pass-clock').classList.add('hidden');
     renderPanels(engine.publicState());
   }
-  function advancePassTurn(){if(mode!=='pass'||!engine||engine.winner!==null)return;passActiveId=1-passActiveId;showPassHandover();}
+  function advancePassTurn(){
+    if(mode!=='pass'||!engine||engine.winner!==null)return;
+    const current=engine.player(passActiveId);
+    if(current)passLastByTeam[current.team]=current.id;
+    let team=1-(current?.team??0),available=engine.alive(team).sort((a,b)=>a.id-b.id);
+    if(!available.length){team=current?.team??0;available=engine.alive(team).sort((a,b)=>a.id-b.id);}
+    if(!available.length)return;
+    passActiveId=(available.find(p=>p.id>passLastByTeam[team])||available[0]).id;
+    showPassHandover();
+  }
   function updatePassTimer(now){
     if(mode!=='pass'||!passReady||passPlayback||!engine||engine.winner!==null)return;
     const remaining=Math.max(0,Math.ceil((passDeadline-now)/1000)),clock=$('pass-clock');
@@ -1341,7 +1354,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }));
   syncHostSettings();
 
-  const show=key=>['main-menu','bot-setup','lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
+  const show=key=>['main-menu','bot-setup','pass-setup','lobby','online-setup','waiting','battle'].forEach(id=>$(id).classList.toggle('hidden',id!==key));
   // Royalty-free original procedural audio lives in audio-engine.js.
   // If Web Audio is blocked, the rest of the game runs as normal.
   const audio=window.STEAMBattleAudio||{
@@ -1436,7 +1449,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(quizMode==='year2')year2Deck=[];
     const rules=['host','guest','guest-disconnected'].includes(kind)?normalizeMatchSettings({...readMatchSettings(),aimAssist:false,autoRoam:true,fullManual:false}):kind==='pass'?normalizeMatchSettings({...readMatchSettings(),fullManual:false,autoRoam:true}):readMatchSettings(),botProfiles=[savedProfiles[0],cleanProfile({...savedProfiles[1],name:'CPU '+botDifficulty.toUpperCase()},1)];
     const profiles=kind==='bot'?botProfiles:['local','pass'].includes(kind)?savedProfiles:roomProfiles;
-    engine=['local','pass','host','bot'].includes(kind)?new Game(ids,kind==='host',profiles,$('movement-mode').value,quizMode,rules,kind==='pass'):null;
+    engine=['local','pass','host','bot'].includes(kind)?new Game(ids,kind==='host',profiles,$('movement-mode').value,quizMode,rules,kind==='pass',kind==='pass'&&passTeamMode):null;
     onlineTurn=kind==='host'?createOnlineTurn():null;
     botNextAt=0;matchAssistConfigured=false;aimAssistEnabled=rules.aimAssist;updateAimAssist();
     remoteState=null;lastUiVersion=-1;lastSfxEvent=0;lastFrame=0;lastSent=0;lastSentVersion=0;visibleGameState=null;
@@ -1445,7 +1458,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('room-chip').textContent=`ROOM ${room||'------'}`;
     $('connection-label').textContent=kind==='local'?'SAME DEVICE':kind==='pass'?'PASS TO PLAY':kind==='bot'?`BOT · ${botDifficulty.toUpperCase()}`:`P${myId+1} · ONLINE`;
     controls.classList.toggle('single',kind!=='local');controls.classList.toggle('local-dual',kind==='local');
-    controls.innerHTML='';controls.dataset.onlineWaiting='';$('online-turn-status').classList.toggle('hidden',!['host','guest'].includes(kind));$('online-turn-clock').classList.add('hidden');show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=0;passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
+    controls.innerHTML='';controls.dataset.onlineWaiting='';$('online-turn-status').classList.toggle('hidden',!['host','guest'].includes(kind));$('online-turn-clock').classList.add('hidden');show('battle');fitCanvas();audio.start();passPlayback=false;passPlaybackStartedAt=0;passActiveId=engine?.players.find(p=>p.hp>0)?.id??0;passLastByTeam={0:-1,1:-1};passReady=false;passTimeLimit=passDuration;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');renderGameState(engine?.publicState()||null);if(kind==='pass')showPassHandover();
     if(kind==='host')sendState();
   }
   function safePeerJs(){return new Promise((resolve,reject)=>{
@@ -1570,7 +1583,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   function panelHTML(p,quizMode='mixed'){
     const ready=p.stage==='armed',sunk=p.hp<=0;
     const state=sunk?'● SUNK':ready?'● CHOOSE ACTION':p.defenseOpen?'◉ MOVE':'● QUESTION';
-    const head=`<div class="console-top"><div class="console-name"><span class="player-tag">${p.team===0?'P1 · BLUE':'P2 · RED'}</span><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
+    const head=`<div class="console-top"><div class="console-name"><span class="player-tag">P${p.id+1} · ${p.team===0?'BLUE':'RED'}</span><i class="captain-swatch"></i>${esc(p.profile?.name||`P${p.id+1}`)}</div><div class="console-state ${ready?'':p.defenseOpen?'defense-on':'state-locked'}">${state}</div></div>`;
     let body;
     if(sunk)body='<div class="console-body">SUNK</div>';
     else if(!ready){
@@ -2178,7 +2191,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const v=JSON.parse($('settings-backup-text').value);
       if(v?.format!=='stem-battleship-backup-1'||!Array.isArray(v.profiles)||v.profiles.length<2)throw Error('Unrecognised backup');
       if(!window.confirm('Restore this backup and overwrite the saved ship designs and settings on this device?'))return;
-      savedProfiles=[cleanProfile(v.profiles[0],0),cleanProfile(v.profiles[1],1)];
+      savedProfiles=Array.from({length:MAX_PLAYERS},(_,id)=>cleanProfile(v.profiles[id],id));
       gameLanguage=v.language==='ms'?'ms':'en';
       passDuration=PASS_DURATIONS.includes(Number(v.turnDuration))?Number(v.turnDuration):75;
       matchSettings=normalizeMatchSettings(v.matchSettings);
@@ -2208,7 +2221,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('cancel-wait').addEventListener('click',resetToLobby);
   $('menu-btn').addEventListener('click',()=>{if(window.confirm('Leave the current match?'))resetToLobby();});
   $('end-menu-btn').addEventListener('click',resetToLobby);
-  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='pass'){beginGame('pass');}else if(mode==='bot'){beginGame('bot');}else if(mode==='host'){beginGame('host',roster);}});
+  $('rematch-btn').addEventListener('click',()=>{if(mode==='local'){beginGame('local');}else if(mode==='pass'){beginGame('pass',passPlayers);}else if(mode==='bot'){beginGame('bot');}else if(mode==='host'){beginGame('host',roster);}});
   function roomInviteUrl(){
     // Always share the hosted web app, not an Android appassets:// offline URL.
     // This exact URL works on iOS Safari, Android Chrome and desktop browsers.
