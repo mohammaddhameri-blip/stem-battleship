@@ -1956,7 +1956,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   $('settings-overlay').addEventListener('click',e=>{if(e.target.id==='settings-overlay')closeSettings();});
   document.querySelectorAll('input[name="pass-duration"]').forEach(x=>x.addEventListener('change',()=>{
     if(!x.checked||!PASS_DURATIONS.includes(Number(x.value)))return;
-    passDuration=Number(x.value);try{localStorage.setItem('stem-pass-turn-duration',String(passDuration));}catch(_){}
+    passDuration=Number(x.value);try{localStorage.setItem('stem-pass-turn-duration',String(passDuration));}catch(_){}syncHostSettings();
   }));
   $('settings-audio-btn').addEventListener('click',()=>{closeSettings();$('sound-btn').click();});
   $('pass-ready').addEventListener('click',startPassTurn);
