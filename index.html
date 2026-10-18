@@ -744,7 +744,11 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   const DEFAULT_MATCH_SETTINGS={aimAssist:false,autoRoam:true,fullManual:false,topics:[...CONFIG_TOPICS],difficulty:2,levels:[2]};
   function normalizeMatchSettings(value){
     const v=value&&typeof value==='object'?value:{};
-    const topics=Array.isArray(v.topics)?[...new Set(v.topics.filter(x=>CONFIG_TOPICS.includes(x)))]:[...CONFIG_TOPICS];
+    const incoming=Array.isArray(v.topics)?[...new Set(v.topics.filter(x=>CONFIG_TOPICS.includes(x)))]:null;
+    // Migrate existing users who had every old topic selected: enable the new
+    // trivia and BM subjects too, without changing customized subject choices.
+    const old=['science-life','science-plants','science-matter','science-energy','math-add','math-subtract','math-multiply','math-divide','math-percent','math-measure','english-vocab','english-grammar'];
+    const topics=!incoming||(incoming.length===old.length&&old.every(t=>incoming.includes(t)))?[...CONFIG_TOPICS]:incoming;
     const difficulty=[1,2,3].includes(Number(v.difficulty))?Number(v.difficulty):2;
     return {aimAssist:v.aimAssist===true,autoRoam:v.fullManual===true?false:v.autoRoam!==false,fullManual:v.fullManual===true,
       topics:topics.length?topics:[...CONFIG_TOPICS],difficulty,levels:[difficulty]};
@@ -781,12 +785,12 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(!ops.length)return null;
     const topic=ops[rnd(0,ops.length-1)],level=settings.difficulty;
     let a,b,text,answer;
-    if(topic==='math-add'){a=rnd(2,level===1?18:65);b=rnd(2,level===1?14:35);text=`${a} + ${b} = ?`;answer=a+b;}
-    else if(topic==='math-subtract'){a=rnd(level===1?12:40,level===1?28:90);b=rnd(2,Math.min(a-1,level===1?12:40));text=`${a} − ${b} = ?`;answer=a-b;}
-    else if(topic==='math-multiply'){a=rnd(2,level===1?5:9);b=rnd(2,level===1?6:9);text=`${a} × ${b} = ?`;answer=a*b;}
-    else if(topic==='math-divide'){a=rnd(2,level===1?5:9);b=rnd(2,level===1?5:9);text=`${a*b} ÷ ${a} = ?`;answer=b;}
-    else if(topic==='math-percent'){const sets=level===1?[[50,80],[25,60],[10,70]]:[[25,80],[40,70],[50,90],[20,60],[10,90]];[a,b]=sets[rnd(0,sets.length-1)];text=`What is ${a}% of ${b}?`;answer=a*b/100;}
-    else {a=rnd(2,level===1?5:8);b=rnd(2,level===1?5:7);text=level===1?`There are ${a} bags with ${b} shells each. How many shells?`:`A rectangle is ${a} cm by ${b} cm. What is its area (cm²)?`;answer=a*b;}
+    if(topic==='math-add'){a=rnd(level===3?75:2,level===1?18:level===2?65:175);b=rnd(level===3?35:2,level===1?14:level===2?35:95);text=`${a} + ${b} = ?`;answer=a+b;}
+    else if(topic==='math-subtract'){a=rnd(level===1?12:level===2?40:110,level===1?28:level===2?90:250);b=rnd(2,Math.min(a-1,level===1?12:level===2?40:95));text=`${a} − ${b} = ?`;answer=a-b;}
+    else if(topic==='math-multiply'){a=rnd(level===3?6:2,level===1?5:level===2?9:12);b=level===3?[5,10,11,12,15][rnd(0,4)]:rnd(2,level===1?6:9);text=`${a} × ${b} = ?`;answer=a*b;}
+    else if(topic==='math-divide'){a=rnd(level===3?6:2,level===1?5:level===2?9:12);b=level===3?[5,10,11,12][rnd(0,3)]:rnd(2,level===1?5:9);text=`${a*b} ÷ ${a} = ?`;answer=b;}
+    else if(topic==='math-percent'){const sets=level===1?[[50,80],[25,60],[10,70]]:level===2?[[25,80],[40,70],[50,90],[20,60],[10,90]]:[[12.5,80],[75,80],[35,200],[60,150],[15,200]];[a,b]=sets[rnd(0,sets.length-1)];text=`What is ${a}% of ${b}?`;answer=a*b/100;}
+    else {a=rnd(level===3?6:2,level===1?5:level===2?8:12);b=rnd(level===3?5:2,level===1?5:level===2?7:12);text=level===1?`There are ${a} bags with ${b} shells each. How many shells?`:`A rectangle is ${a} cm by ${b} cm. What is its area (cm²)?`;answer=a*b;}
     return {id:++questionCounter,kind:'choice',text,answer:String(answer),options:mathChoiceOptions(answer),subject:'Mathematics',level:`Level ${level}`,levelNumber:level};
   }
   function makeQuestion(quizMode='mixed',rawSettings=null){
@@ -796,7 +800,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const item=year2Deck.pop();
       return {id:++questionCounter,kind:'choice',text:item.text,answer:item.answer,options:shuffle(item.options),subject:item.subject,level:item.level};
     }
-    const all=[...QUIZ_BANK,...YEAR2_QUIZ,...ADVANCED_QUIZ,
+    const all=[...QUIZ_BANK,...ADVANCED_QUIZ,
       {subject:'Science',text:'Which part of a plant absorbs water and minerals from the soil?',answer:'Roots',options:['Roots','Flowers','Fruits','Petals'],levelNumber:2},
       {subject:'Science',text:'Which plant part usually produces food using sunlight?',answer:'Leaves',options:['Leaves','Roots','Fruit','Stem only'],levelNumber:2},
       {subject:'Science',text:'What do plants absorb from the soil through their roots?',answer:'Water and minerals',options:['Water and minerals','Plastic','Smoke','Glass'],levelNumber:2}
@@ -1562,7 +1566,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(sunk)body='<div class="console-body">SUNK</div>';
     else if(!ready){
       const translated=window.STEMQuestionMS?.translate(p.question,gameLanguage)||p.question;
-      const qLang=gameLanguage==='ms'&&['Science','Mathematics'].includes(p.question.subject)?'ms':'en';
+      const qLang=p.question.subject==='Bahasa Melayu'||(gameLanguage==='ms'&&['Science','Mathematics'].includes(p.question.subject))?'ms':'en';
       // Display translated choices but submit the UNTRANSLATED option via its index.
       // This preserves correct server-side grading in 1v1, 3v3 and Pass to Play.
       const answer=`<div class="quiz-options" lang="${qLang}">${translated.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
