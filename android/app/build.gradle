@@ -14,7 +14,22 @@ android {
         versionName '3.08'
     }
 
+    // Never use an automatically generated, runner-specific debug signing key.
+    // GitHub Actions restores this exact keystore before compiling. Its
+    // certificate must match the previously published APK or the job fails.
+    signingConfigs {
+        debug {
+            storeFile file(System.getenv('STEM_APK_KEYSTORE') ?: (System.getenv('HOME') + '/.android/debug.keystore'))
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
         }
