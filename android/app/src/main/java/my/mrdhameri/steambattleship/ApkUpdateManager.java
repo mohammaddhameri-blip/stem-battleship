@@ -314,7 +314,7 @@ public final class ApkUpdateManager {
             // Android's installer may report success before the package manager
             // shows the new version in this still-running process.
             int installStatus = data == null ? 0 :
-                data.getIntExtra(Intent.EXTRA_INSTALL_RESULT, 0);
+                data.getIntExtra("android.intent.extra.INSTALL_RESULT", 0);
             if (resultCode == Activity.RESULT_OK ||
                 installedVersionCode() >= (available == null ? Long.MAX_VALUE : available.code)) {
                 main.postDelayed(() -> {
