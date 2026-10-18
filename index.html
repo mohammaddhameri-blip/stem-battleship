@@ -428,7 +428,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 .language-choice-row input{position:absolute;opacity:0;width:1px;height:1px}
 .language-choice-row span{display:grid;place-items:center;min-height:45px;padding:10px 12px;text-align:center;border:1px solid #365f73;border-radius:8px;background:#0b2337;color:#d4e7ee;font-size:12px;font-weight:900}
 .language-choice-row input:checked+span{border-color:#48e1c8;color:#042b34;background:#4ce4d0}
-.language-choice-row input:focus-visible+span{outline:2px solid white;outline-offset:2px}
+.language-choice-row input:focus-visible+span{outline:2px solid white;outline-offset:2px}.language-help{color:#8bb5c1;font-size:10px;line-height:1.5;margin:10px 3px 0}
 @media(max-width:480px){.main-menu-version{right:12px;bottom:8px;font-size:10px}.language-choice-row span{font-size:11px;padding:9px 6px}}
 </style>
 <link rel="stylesheet" href="./naval-theme.css"/>
@@ -514,11 +514,11 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 
 <div class="settings-overlay hidden" id="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div class="settings-card">
 <div class="settings-head"><h2 id="settings-title">⚙ SETTINGS</h2><button class="icon-btn" id="close-settings" type="button" aria-label="Close settings">✕</button></div>
-<fieldset class="language-settings"><legend>LANGUAGE / BAHASA</legend>
+<fieldset class="language-settings"><legend>QUESTION LANGUAGE / BAHASA SOALAN</legend>
 <div class="language-choice-row" role="radiogroup" aria-label="Game language">
 <label><input type="radio" name="game-language" value="en" checked><span>English</span></label>
 <label><input type="radio" name="game-language" value="ms"><span>Bahasa Melayu</span></label>
-</div></fieldset>
+</div><p class="language-help">Science &amp; Maths only · English questions stay in English.</p></fieldset>
 <fieldset class="turn-settings"><legend>PASS TO PLAY · TURN DURATION</legend>
 <div class="turn-choice-row">
 <label><input type="radio" name="pass-duration" value="30"><span>30s</span></label>
@@ -532,6 +532,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
 <div class="pass-overlay hidden" id="pass-overlay" role="dialog" aria-modal="true" aria-labelledby="pass-team">
 <div class="pass-card"><div class="pass-kicker">PASS TO PLAY</div><h2 id="pass-team">TEAM BLUE</h2><p id="pass-captain">P1 VANGUARD</p><p class="pass-hint">Pass the device to this team. Tap ready to begin their countdown.</p><button class="primary-btn" id="pass-ready" type="button">▶ READY</button></div></div>
 <script src="audio-engine.js"></script>
+<script src="question-ms.js"></script>
 <script>
 
 /* STEM BATTLESHIP — 2-player local + peer-to-peer online classroom prototype.
@@ -1146,7 +1147,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     publicState(){return {onlineTurn:this.online&&onlineTurn?{
       activeId:onlineTurn.activeId,phase:onlineTurn.phase,duration:onlineTurn.duration,
       remainingMs:onlineTurn.phase==='playing'?Math.max(0,Math.ceil(onlineTurn.deadline-performance.now())):0
-    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),weaponUnlocks:this.weaponUnlocks.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,subject:p.question.subject,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),weaponUnlocks:this.weaponUnlocks.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
@@ -1522,8 +1523,12 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     let body;
     if(sunk)body='<div class="console-body">SUNK</div>';
     else if(!ready){
-      const answer=`<div class="quiz-options">${p.question.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
-      body=`<div class="console-body"><div class="question-text">${esc(p.question.text)}</div>${answer}</div>`;
+      const translated=window.STEMQuestionMS?.translate(p.question,gameLanguage)||p.question;
+      const qLang=gameLanguage==='ms'&&['Science','Mathematics'].includes(p.question.subject)?'ms':'en';
+      // Display translated choices but submit the UNTRANSLATED option via its index.
+      // This preserves correct server-side grading in 1v1, 3v3 and Pass to Play.
+      const answer=`<div class="quiz-options" lang="${qLang}">${translated.options.map((v,i)=>`<button type="button" class="quiz-option" data-action="choice" data-value="${i}">${String.fromCharCode(65+i)}. ${esc(v)}</button>`).join('')}</div>`;
+      body=`<div class="console-body"><div class="question-text" lang="${qLang}">${esc(translated.text)}</div>${answer}</div>`;
     }else{
       const autoAim=quizMode==='year2';
       const aimView=autoAim?
@@ -1557,7 +1562,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     ids.forEach(id=>{
       const p=s.players.find(x=>x.id===id);if(!p)return;
       // Keep the current question visible across opponent and network updates.
-      const key=`${p.stage}-${p.question.id}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.torpedo}-${p.stock.airstrike}-${p.profile?.name}`;
+      const key=`${gameLanguage}-${p.stage}-${p.question.id}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.torpedo}-${p.stock.airstrike}-${p.profile?.name}`;
       let el=controls.querySelector(`[data-player="${id}"]`);
       if(!el){el=document.createElement('section');el.className=`control-panel p${id}`;el.dataset.player=id;controls.appendChild(el);}
       if(el.dataset.renderKey!==key){
@@ -2077,6 +2082,12 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     document.querySelectorAll('input[name="pass-duration"]').forEach(x=>x.checked=Number(x.value)===passDuration);
     document.querySelectorAll('input[name="game-language"]').forEach(x=>x.checked=x.value===gameLanguage);
     $('settings-overlay').classList.remove('hidden');
+  }
+  function applyLanguage(){
+    // This setting is QUESTION-ONLY: all buttons, menus, and other game UI
+    // intentionally remain in English regardless of language selection.
+    const s=getGameState();
+    if(s)renderPanels(s);
   }
   document.querySelectorAll('input[name="game-language"]').forEach(x=>x.addEventListener('change',()=>{
     if(!x.checked||!['en','ms'].includes(x.value))return;
