@@ -299,32 +299,55 @@ public final class ApkUpdateManager {
         }
     }
 
-    public boolean onActivityResult(int requestCode, int resultCode) {
+    public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == ALLOW_INSTALL_REQUEST) {
             if (Build.VERSION.SDK_INT < 26 ||
                 activity.getPackageManager().canRequestPackageInstalls()) {
                 requestInstall();
             } else {
-                showRetry("Installation permission was not enabled.");
+                showRetry("Android did not grant permission to install updates from this app.");
             }
             return true;
         }
         if (requestCode == INSTALL_REQUEST) {
             installing = false;
-            if (installedVersionCode() >= (available == null ? Long.MAX_VALUE : available.code)) {
-                // A successful package replacement usually terminates the old app.
-                // Some Android installers return here first: explicitly reopen it.
-                Intent launch = activity.getPackageManager()
-                    .getLaunchIntentForPackage(activity.getPackageName());
-                if (launch != null) {
-                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    activity.startActivity(launch);
-                    activity.finish();
-                } else {
-                    continueToGame();
-                }
+            // Android's installer may report success before the package manager
+            // shows the new version in this still-running process.
+            int installStatus = data == null ? 0 :
+                data.getIntExtra(Intent.EXTRA_INSTALL_RESULT, 0);
+            if (resultCode == Activity.RESULT_OK ||
+                installedVersionCode() >= (available == null ? Long.MAX_VALUE : available.code)) {
+                main.postDelayed(() -> {
+                    if (activity.isFinishing()) return;
+                    Intent launch = activity.getPackageManager()
+                        .getLaunchIntentForPackage(activity.getPackageName());
+                    if (launch != null) {
+                        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        activity.startActivity(launch);
+                        activity.finish();
+                    } else continueToGame();
+                }, 700);
             } else {
-                showRetry("Installation was not completed.");
+                String reason;
+                if (installStatus == -7) {
+                    reason = "Android rejected the update because its signing certificate " +
+                        "is different from the installed app. This happened in earlier APK " +
+                        "builds; back up your ship designs before reinstalling.";
+                } else if (installStatus == -4) {
+                    reason = "Android reports insufficient storage. Free some space and retry.";
+                } else if (installStatus == -25) {
+                    reason = "Android rejected a version downgrade.";
+                } else if (installStatus == -2 || installStatus == -3) {
+                    reason = "Android rejected the APK file. Please download a fresh copy.";
+                } else if (installStatus != 0) {
+                    reason = "Android rejected installation (result " + installStatus + ").";
+                } else {
+                    reason = "Android cancelled or blocked the installation. Confirm any " +
+                        "system security prompts and verify that updates from STEM Battleship " +
+                        "are allowed. If you previously installed an APK with a different " +
+                        "signing certificate, Android cannot update it in place.";
+                }
+                showRetry(reason);
             }
             return true;
         }
