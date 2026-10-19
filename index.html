@@ -869,7 +869,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(!item)return generatedMathQuestion(settings)||makeQuestion('year2');
     return {id:++questionCounter,kind:'choice',text:item.text,answer:String(item.answer),options:shuffle(item.options),subject:item.subject,topic:item.topic||questionTopic(item),msText:item.msText,msOptions:item.msOptions,level:`Level ${questionLevel(item)}`,levelNumber:questionLevel(item)};
   }
-  function makePlayer(id,team,col,row,profile,quizMode='mixed',settings=null){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:0,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode,settings),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
+  function makePlayer(id,team,col,row,profile,quizMode='mixed',settings=null){return {id,team,col,row,x:col+.5,y:row+.5,vx:0,vy:0,autoTarget:null,cruiseDX:0,cruiseDY:0,profile:cleanProfile(profile,id),hp:MAX_HP,angle:team===0?90:270,ammo:'shell',stock:{shell:-1,flak:3,torpedo:0,repair:-1,airstrike:0},stage:'question',defenseOpen:false,sinkAge:0,question:makeQuestion(quizMode,settings),lastCorrect:null,streak:0,answered:0,correct:0,shots:0,hits:0,repairs:0,target:null,lastVolley:null};}
   class Game {
     constructor(ids=[0,1],online=false,profiles=null,movementMode='manual',quizMode='mixed',settings=null,randomAutoSpeed=false,friendlyFire=false){
       this.quizMode=!online&&quizMode==='year2'?'year2':'mixed';
@@ -880,6 +880,13 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       setBoard(Math.max(...counts));
       const positions=[0,0];
       this.players=this.ids.map(id=>{const team=id%2,i=positions[team]++,n=counts[team];const row=CLAMP(Math.round((i+1)*ROWS/(n+1)-.5),0,ROWS-1),col=team===0?Math.min(1,SPLIT-1):Math.max(SPLIT,COLS-2);return makePlayer(id,team,col,row,profiles?.[id],this.quizMode,this.settings);});
+      // Start each ship on a different straight-line heading. No random wandering.
+      const cruiseHeadings=[.43,-.57,.70,-.40,.55,-.76];
+      for(const p of this.players){
+        const theta=cruiseHeadings[p.id%cruiseHeadings.length];
+        p.cruiseDX=(p.team===0?1:-1)*Math.cos(theta);
+        p.cruiseDY=Math.sin(theta);
+      }
       this.projectiles=[];this.airstrikes=[];this.effects=[];this.pickups=[];
       this.winner=null;this.version=1;this.eventId=1;this.notice='';
       this.currentProjectileId=0;this.volleyId=0;this.volleyOwners={};
@@ -896,47 +903,41 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     }
     moveAuto(dt){
       if(this.movementMode!=='auto'||this.winner!==null||dt<=0)return;
-      const speed=.38; // Existing fixed speed remains for all other modes.
       for(const p of this.players){
         if(p.hp<=0)continue;
-        if(this.randomAutoSpeed){
-          // Each ship independently changes its cruise speed every 2.5–5.5s.
-          // Ease changes to avoid sudden jerks while pupils aim.
-          if(!Number.isFinite(p.roamSpeedChangeIn)||p.roamSpeedChangeIn<=0){
-            p.roamSpeedTarget=.23+Math.random()*.39;
-            p.roamSpeedChangeIn=2.5+Math.random()*3;
-            if(!Number.isFinite(p.roamSpeed))p.roamSpeed=p.roamSpeedTarget;
-          }
-          p.roamSpeedChangeIn-=dt;
-          p.roamSpeed+=(p.roamSpeedTarget-p.roamSpeed)*(1-Math.exp(-dt*1.15));
-        }
         const xmin=p.team===0?.65:SPLIT+.65;
         const xmax=p.team===0?SPLIT-.65:COLS-.65;
         const ymin=.65,ymax=ROWS-.65;
-        // A spawned radio takes priority over roaming: automatically steer
-        // directly to this ship's own pickup until it has been collected.
+        // An assigned airstrike radio is the only course-change exception.
         const radio=this.pickups.find(w=>w.owner===p.id);
-        let target=radio?{x:radio.col+.5,y:radio.row+.5}:p.autoTarget;
-        if(!radio&&(!target||Math.hypot(target.x-p.x,target.y-p.y)<.34)){
-          target={x:xmin+Math.random()*(xmax-xmin),y:ymin+Math.random()*(ymax-ymin)};
-          p.autoTarget=target;
+        let dx=p.cruiseDX,dy=p.cruiseDY;
+        if(radio){
+          const diffX=radio.col+.5-p.x,diffY=radio.row+.5-p.y;
+          const distance=Math.hypot(diffX,diffY);
+          if(distance>.01){dx=diffX/distance;dy=diffY/distance;}
+          else {this.checkPickup(p);continue;}
         }
-        let dx=target.x-p.x,dy=target.y-p.y;
-        let magnitude=Math.hypot(dx,dy)||1;dx/=magnitude;dy/=magnitude;
-        // Gentle repulsion prevents same-team ships from overlapping.
-        for(const other of this.players){
-          if(other===p||other.hp<=0||other.team!==p.team)continue;
-          const ox=p.x-other.x,oy=p.y-other.y,dist=Math.hypot(ox,oy);
-          if(dist>.0001&&dist<1.05){const push=(1.05-dist)*(radio?.6:2.3);dx+=ox/dist*push;dy+=oy/dist*push;}
+        const step=(radio?.48:.38)*dt;
+        let nextX=p.x+dx*step,nextY=p.y+dy*step;
+        // Reflect only the component that reaches a wall, avoiding random reroutes.
+        if(nextX<xmin){nextX=xmin+(xmin-nextX);if(!radio)p.cruiseDX=Math.abs(p.cruiseDX);}
+        else if(nextX>xmax){nextX=xmax-(nextX-xmax);if(!radio)p.cruiseDX=-Math.abs(p.cruiseDX);}
+        if(nextY<ymin){nextY=ymin+(ymin-nextY);if(!radio)p.cruiseDY=Math.abs(p.cruiseDY);}
+        else if(nextY>ymax){nextY=ymax-(nextY-ymax);if(!radio)p.cruiseDY=-Math.abs(p.cruiseDY);}
+        nextX=CLAMP(nextX,xmin,xmax);nextY=CLAMP(nextY,ymin,ymax);
+        const blocksAlly=(x,y)=>this.players.some(q=>q!==p&&q.hp>0&&q.team===p.team&&Math.hypot(x-q.x,y-q.y)<.94);
+        if(blocksAlly(nextX,nextY)){
+          if(radio){nextX=p.x;nextY=p.y;}
+          else{
+            // Bounce from friendly ships too; never overlap them.
+            p.cruiseDX=-p.cruiseDX;p.cruiseDY=-p.cruiseDY;
+            nextX=CLAMP(p.x+p.cruiseDX*step,xmin,xmax);
+            nextY=CLAMP(p.y+p.cruiseDY*step,ymin,ymax);
+            if(blocksAlly(nextX,nextY)){nextX=p.x;nextY=p.y;}
+          }
         }
-        magnitude=Math.hypot(dx,dy)||1;
-        const ease=1-Math.exp(-dt*(radio?4:2.2));
-        const chosenSpeed=this.randomAutoSpeed?p.roamSpeed:(radio?.48:speed);
-        p.vx+=(dx/magnitude*chosenSpeed-p.vx)*ease;
-        p.vy+=(dy/magnitude*chosenSpeed-p.vy)*ease;
-        p.x=CLAMP(p.x+p.vx*dt,xmin,xmax);
-        p.y=CLAMP(p.y+p.vy*dt,ymin,ymax);
-        // Keep the integer tile index for compatibility with existing match data.
+        p.vx=(nextX-p.x)/dt;p.vy=(nextY-p.y)/dt;
+        p.x=nextX;p.y=nextY;
         p.col=CLAMP(Math.floor(p.x),p.team===0?0:SPLIT,p.team===0?SPLIT-1:COLS-1);
         p.row=CLAMP(Math.floor(p.y),0,ROWS-1);
         this.checkPickup(p);
@@ -1073,6 +1074,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
         return;
       }
       const angle=p.lastCorrect?p.angle:rnd(0,359);
+      if(this.online&&!p.lastCorrect)p.angle=angle; // Show randomized wrong-answer barrel bearing.
       if(p.stock[ammo]>0)p.stock[ammo]--;
       if(ammo==='torpedo')p.streak=0; // Three NEW consecutive correct answers are required again.
       const volley=++this.volleyId;this.volleyOwners[volley]={owner:id,hit:false};p.lastVolley=volley;
@@ -1240,10 +1242,12 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     publicState(){return {onlineTurn:this.online&&onlineTurn?{
       activeId:onlineTurn.activeId,phase:onlineTurn.phase,duration:onlineTurn.duration,
       remainingMs:onlineTurn.phase==='playing'?Math.max(0,Math.ceil(onlineTurn.deadline-performance.now())):0
-    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,friendlyFire:this.friendlyFire,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,subject:p.question.subject,topic:p.question.topic,msText:p.question.msText,msOptions:p.question.msOptions,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),weaponUnlocks:this.weaponUnlocks.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
+    }:null,quizMode:this.quizMode,movementMode:this.movementMode,fullManual:this.fullManual,friendlyFire:this.friendlyFire,settings:this.settings,online:this.online,cols:COLS,rows:ROWS,split:SPLIT,players:this.players.map(p=>({id:p.id,team:p.team,profile:p.profile,col:p.col,row:p.row,x:p.x,y:p.y,vx:p.vx,vy:p.vy,hp:p.hp,sinkAge:p.sinkAge,angle:p.angle,ammo:p.ammo,stock:{...p.stock},stage:p.stage,defenseOpen:p.defenseOpen,question:{id:p.question.id,kind:p.question.kind,subject:p.question.subject,topic:p.question.topic,msText:p.question.msText,msOptions:p.question.msOptions,text:p.question.text,options:p.question.options||[]},lastCorrect:p.lastCorrect,streak:p.streak,answered:p.answered,correct:p.correct,shots:p.shots,hits:p.hits,repairs:p.repairs,target:p.target})),pickups:this.pickups.map(x=>({...x})),weaponUnlocks:this.weaponUnlocks.map(x=>({...x})),missStreak:[...this.missStreak],airstrikes:this.airstrikes.map(x=>({...x})),projectiles:this.projectiles.map(b=>({...b})),effects:this.effects.map(e=>({...e})),winner:this.winner,version:this.version,eventId:this.eventId,notice:this.notice};}
   }
 
   let mode='lobby',engine=null,remoteState=null,peer=null,conn=null,connections=new Map(),roster=[0],myId=0,room='',lastUiVersion=-1,lastSfxEvent=0,lastFrame=0,lastSent=0,lastSentVersion=0,visibleGameState=null,zoomPercent=50,aimAssistEnabled=false,guestVisual=new Map(),lastRemoteSnapshotTime=0;
+  const pendingOnlineAim=new Map(); // Slider selection stays local until Fire.
+  let guestFireVisual=null;
   let botDifficulty='normal',botNextAt=0,matchAssistConfigured=false;
   const PASS_DURATIONS=[30,45,60,75];
   let gameLanguage=(()=>{try{return localStorage.getItem('stem-battleship-language')==='ms'?'ms':'en';}catch(_){return 'en';}})();
@@ -1447,10 +1451,24 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const smooth=mode==='guest'?guestVisual.get(p.id):null;
     return {x:smooth?.x??p.x??p.col+.5,y:smooth?.y??p.y??p.row+.5};
   };
-  // Guests receive 80 ms snapshots. Extrapolate only up to 110 ms to avoid
-  // visible teleporting of the fast B-2 shadow and corner-launched missile.
-  const airstrikeDisplayAge=plane=>mode==='guest'&&lastRemoteSnapshotTime?
-    plane.age+CLAMP((performance.now()-lastRemoteSnapshotTime)/1000,0,.11):plane.age;
+  // Render-only dead reckoning. The host remains authoritative for hits and turns.
+  function reflectShipPosition(start,velocity,elapsed,min,max){
+    if(!Number.isFinite(start)||!Number.isFinite(velocity)||max<=min)return start;
+    const span=max-min,relative=start-min+velocity*elapsed;
+    const wrapped=((relative%(2*span))+(2*span))%(2*span);
+    return min+(wrapped<=span?wrapped:2*span-wrapped);
+  }
+  function predictedShipPosition(p,elapsed){
+    const xmin=p.team===0?.65:SPLIT+.65,xmax=p.team===0?SPLIT-.65:COLS-.65;
+    return {
+      x:reflectShipPosition(p.x??p.col+.5,p.vx??0,elapsed,xmin,xmax),
+      y:reflectShipPosition(p.y??p.row+.5,p.vy??0,elapsed,.65,ROWS-.65)
+    };
+  }
+  // Guest visuals run locally between event updates and occasional host snapshots.
+  const visualSnapshotElapsed=()=>mode==='guest'&&lastRemoteSnapshotTime?
+    CLAMP((performance.now()-lastRemoteSnapshotTime)/1000,0,1.25):0;
+  const airstrikeDisplayAge=plane=>plane.age+visualSnapshotElapsed();
   function updateSfx(s){
     if(!s||s.eventId===lastSfxEvent)return;
     lastSfxEvent=s.eventId;
@@ -1482,9 +1500,9 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     $('sound-btn').title=st.music||st.sfx?'Music and sound settings':'Audio muted · open settings';
   }
   function destroyPeer(){try{conn?.close();for(const c of connections.values())c.close();peer?.destroy();}catch(_e){}conn=null;connections.clear();peer=null;room='';roster=[0];myId=0;}
-  function resetToLobby(){clearWeaponToasts();onlineTurn=null;$('online-turn-status').classList.add('hidden');$('online-turn-clock').classList.add('hidden');passPlayback=false;passPlaybackStartedAt=0;passReady=false;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');$('settings-overlay').classList.add('hidden');audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
+  function resetToLobby(){clearWeaponToasts();onlineTurn=null;$('online-turn-status').classList.add('hidden');$('online-turn-clock').classList.add('hidden');passPlayback=false;passPlaybackStartedAt=0;passReady=false;passDeadline=0;$('pass-overlay').classList.add('hidden');$('pass-clock').classList.add('hidden');$('settings-overlay').classList.add('hidden');audio.stop();destroyPeer();document.body.classList.remove('game-active');guestVisual.clear();pendingOnlineAim.clear();guestFireVisual=null;mode='menu';engine=null;remoteState=null;visibleGameState=null;lastUiVersion=-1;controls.innerHTML='';$('end-overlay').classList.add('hidden');$('menu-btn').classList.add('hidden');$('connection-label').textContent='READY';show('main-menu');clearTimeout(noticeTimeout);$('battle-notice').classList.add('hidden');}
   function beginGame(kind,players=null){
-    clearWeaponToasts();mode=kind;document.body.classList.add('game-active');guestVisual.clear();zoomPercent=50;syncZoom();
+    clearWeaponToasts();mode=kind;document.body.classList.add('game-active');guestVisual.clear();pendingOnlineAim.clear();guestFireVisual=null;zoomPercent=50;syncZoom();
     const ids=players||[0,1];
     const quizMode=['local','pass'].includes(kind)&&$('question-mode').value==='year2'?'year2':'mixed';
     if(quizMode==='year2')year2Deck=[];
@@ -1540,7 +1558,9 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       else if(m.type==='roster'&&mode==='waiting'){roster=m.roster||roster;roomProfiles=m.profiles||roomProfiles;rosterView();}
       else if(m.type==='start'&&mode==='waiting'){beginGame('guest',m.players);$('battle').dataset.moveMode=m.movementMode==='auto'?'auto':'manual';c.send({type:'ready'});}
       else if(m.type==='state'&&['guest','guest-disconnected'].includes(mode)&&m.state?.players?.length>=2){
-        remoteState=m.state;lastRemoteSnapshotTime=performance.now();setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));for(const p of remoteState.players)if(!guestVisual.has(p.id))guestVisual.set(p.id,{x:p.x??p.col+.5,y:p.y??p.row+.5});renderGameState(remoteState);
+        remoteState=m.state;lastRemoteSnapshotTime=performance.now();
+        if(guestFireVisual&&remoteState.players.find(p=>p.id===myId)?.stage!=='armed')guestFireVisual=null;
+        setBoard(Math.max(1,...[0,1].map(t=>remoteState.players.filter(p=>p.team===t).length)));for(const p of remoteState.players)if(!guestVisual.has(p.id))guestVisual.set(p.id,{x:p.x??p.col+.5,y:p.y??p.row+.5});renderGameState(remoteState);
       }
       else if(m.type==='reject'){networkError(new Error(m.reason||'Room rejected connection'));}
     });
@@ -1568,8 +1588,20 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     if(mode==='host'&&!onlineTurnValid(id))return;
     const before=engine.player(id)?.stage;
     if(action==='answer')engine.answer(id,value);
-    else if(action==='fire')engine.fire(id);
-    else if(['move','aim','equip','target'].includes(action))engine.act(id,action,value);
+    else if(action==='fire'){
+      // Atomic fire-and-aim command. Never trust the client to select a bearing outside the slider range.
+      const p=engine.player(id);
+      if(mode==='host'&&p?.stage==='armed'&&value&&Number.isFinite(value.angle)){
+        const bearing=((Math.round(value.angle)%360)+360)%360;
+        const relative=((bearing-(p.team===0?90:270)+540)%360)-180;
+        if(Math.abs(relative)<=80)engine.act(id,'aim',bearing);
+      }
+      engine.fire(id);
+    }
+    else if(['move','aim','equip','target'].includes(action)){
+      if(mode==='host'&&action==='aim')return; // Don't process drag packets from guests.
+      engine.act(id,action,value);
+    }
     renderGameState(engine.publicState());
     if(mode==='pass'&&before==='armed'&&engine.player(id)?.stage==='question')beginPassPlayback();
     if(mode==='host'&&before==='armed'&&engine.player(id)?.stage==='question'&&onlineTurn){
@@ -1666,6 +1698,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     for(const child of [...controls.children])if(!ids.includes(Number(child.dataset.player)))child.remove();
     ids.forEach(id=>{
       const p=s.players.find(x=>x.id===id);if(!p)return;
+      if(p.stage!=='armed')pendingOnlineAim.delete(id);
       // Keep the current question visible across opponent and network updates.
       const key=`${gameLanguage}-${p.stage}-${p.question.id}-${p.ammo}-${p.streak}-${p.lastCorrect}-${p.hp<=0}-${p.stock.torpedo}-${p.stock.airstrike}-${p.profile?.name}`;
       let el=controls.querySelector(`[data-player="${id}"]`);
@@ -1676,9 +1709,12 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       const stateEl=el.querySelector('.console-state');
       if(stateEl){stateEl.textContent=p.hp<=0?'● SUNK':p.stage==='armed'?'● CHOOSE ACTION':p.defenseOpen?'◉ MOVE':'● QUESTION';stateEl.classList.toggle('defense-on',p.defenseOpen);}
       const slider=el.querySelector('[data-aim-slider]');
-      if(slider&&!slider.matches(':active'))slider.value=String(fromBearing(p.team,p.angle));
+      if(slider&&!slider.matches(':active')){
+        const selected=s.online?pendingOnlineAim.get(id):undefined;
+        slider.value=String(fromBearing(p.team,Number.isFinite(selected)?selected:p.angle));
+      }
       const angle=el.querySelector('[data-angle-value]');
-      if(angle)angle.textContent=aimLabel(slider&&slider.matches(':active')?Number(slider.value):fromBearing(p.team,p.angle));
+      if(angle)angle.textContent=aimLabel(slider?Number(slider.value):fromBearing(p.team,p.angle));
       el.querySelectorAll('[data-action="equip"]').forEach(btn=>{btn.classList.toggle('selected',btn.dataset.value===p.ammo);btn.setAttribute('aria-pressed',String(btn.dataset.value===p.ammo));});
       const fire=el.querySelector('[data-action="fire"]');if(fire)fire.setAttribute('title',p.ammo==='repair'?'Repair your ship (uses this attack cycle)':`Fire ${AMMO[p.ammo].name}`);
     });
@@ -1747,10 +1783,19 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   controls.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn||btn.disabled)return;const panel=btn.closest('[data-player]');if(!panel)return;const id=Number(panel.dataset.player),action=btn.dataset.action;
     if(action==='choice'){const s=getGameState(),q=s?.players.find(p=>p.id===id)?.question;if(q?.kind==='choice')doAction(id,'answer',q.options[Number(btn.dataset.value)]);}
+    else if(action==='fire'&&(mode==='host'||mode==='guest')){
+      const p=getGameState()?.players?.find(q=>q.id===id);
+      const selected=pendingOnlineAim.get(id);
+      const bearing=Number.isFinite(selected)?selected:p?.angle;
+      if(mode==='guest'&&p?.lastCorrect===true&&Number.isFinite(bearing))guestFireVisual={id,angle:bearing};
+      pendingOnlineAim.delete(id);
+      btn.disabled=true;btn.textContent='FIRING…';
+      doAction(id,'fire',{angle:bearing});
+    }
     else doAction(id,action,btn.dataset.value);
   });
-  // Delegated native range input works with taps, touch dragging, and arrow keys.
-  // The original aim action remains authoritative, including during online matches.
+  // Online aim slider changes are local. Fire sends one validated atomic command.
+  // Offline modes keep their original continuous barrel aiming.
   controls.addEventListener('input',e=>{
     const slider=e.target.closest('[data-aim-slider]');
     if(!slider)return;
@@ -1761,6 +1806,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const angle=slider.closest('.control-box')?.querySelector('[data-angle-value]');
     if(angle)angle.textContent=aimLabel(offset);
     slider.setAttribute('aria-valuetext',`${aimLabel(offset)} relative to the enemy`);
+    if(mode==='host'||mode==='guest'){pendingOnlineAim.set(id,toBearing(p.team,offset));return;}
     doAction(id,'aim',toBearing(p.team,offset));
   });
 
@@ -2023,10 +2069,12 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function paintProjectiles(s,t){
     for(const b of s.projectiles){
-      if(b.delay>0)continue;
-      const mid=PROJECT(b.x,b.y);
+      const elapsed=visualSnapshotElapsed();
+      if(b.delay>elapsed)continue;
+      const travel=Math.max(0,elapsed-Math.max(0,b.delay));
+      const mid=PROJECT(b.x+(b.vx||0)*travel,b.y+(b.vy||0)*travel);
       const isArc=b.type==='shell'||b.type==='flak';
-      const progress=Math.min(1,b.age/(b.type==='shell'?1.7:1.25));
+      const progress=Math.min(1,(b.age+travel)/(b.type==='shell'?1.7:1.25));
       const altitude=isArc?Math.sin(progress*Math.PI)*Math.min(15,TILE*.18):0;
       if(isArc){
         // Animate the projectile's arcing height without drawing a trajectory line.
@@ -2046,7 +2094,9 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function paintEffects(s){
     for(const e of s.effects){
-      const k=e.age/e.life,m=PROJECT(e.x,e.y);
+      const k=(e.age+visualSnapshotElapsed())/e.life;
+      if(k>=1)continue;
+      const m=PROJECT(e.x,e.y);
       if(e.type==='boom'){
         const rad=e.size*46*(.55+k);
         ellipse(m.x,m.y,rad,rad*.53,`rgba(255,134,62,${(1-k)*.55})`);
@@ -2076,7 +2126,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
   }
   function drawScene(s,t){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);wave(t);
     ctx.save();applyCamera();grid(t,s);
-    if(s){paintAirstrikeShadows(s);for(const w of (s.pickups||[])){const loc=PROJECT(w.col+.5,w.row+.5);const sc=TILE/100;ctx.save();ctx.translate(loc.x,loc.y);ctx.fillStyle='rgba(252,216,107,.16)';ctx.beginPath();ctx.arc(0,0,30*sc,0,7);ctx.fill();ctx.font=`${Math.max(19,35*sc)}px system-ui`;ctx.textAlign='center';ctx.fillText('📻',0,11*sc);ctx.restore();}paintAimAssist(s);for(const p of s.players)ship(p,t);paintAirstrikeMissiles(s);paintProjectiles(s,t);paintEffects(s);
+    if(s){paintAirstrikeShadows(s);for(const w of (s.pickups||[])){const loc=PROJECT(w.col+.5,w.row+.5);const sc=TILE/100;ctx.save();ctx.translate(loc.x,loc.y);ctx.fillStyle='rgba(252,216,107,.16)';ctx.beginPath();ctx.arc(0,0,30*sc,0,7);ctx.fill();ctx.font=`${Math.max(19,35*sc)}px system-ui`;ctx.textAlign='center';ctx.fillText('📻',0,11*sc);ctx.restore();}paintAimAssist(s);for(const p of s.players)ship(mode==='guest'&&guestFireVisual?.id===p.id?{...p,angle:guestFireVisual.angle}:p,t);paintAirstrikeMissiles(s);paintProjectiles(s,t);paintEffects(s);
       for(const p of s.players){if(p.stage==='armed'&&p.ammo==='airstrike'&&p.target&&((mode==='host'&&p.id===0)||(mode==='guest'&&p.id===myId)||(mode==='local')||(mode==='pass'&&passReady&&p.id===passActiveId))){const m=PROJECT(p.target.col+.5,p.target.row+.5);ctx.strokeStyle='rgba(250,232,130,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(m.x,m.y,Math.max(10,TILE*.29),0,Math.PI*2);ctx.stroke();}}
       if(s.winner!==null&&s.players.every(p=>p.hp>0||(p.sinkAge||0)>=5)){ctx.fillStyle='#04172bd9';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#dcf5f8';ctx.font='900 47px system-ui';ctx.fillText(`${s.winner===0?'BLUE':'RED'} VICTORY`,W/2,260);}}
     ctx.restore();
@@ -2139,7 +2189,8 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
     const dt=lastFrame?(ts-lastFrame)/1000:0;lastFrame=ts;
     if(mode==='guest'&&remoteState){
       for(const p of remoteState.players){
-        const targetX=p.x??p.col+.5,targetY=p.y??p.row+.5;
+        const predicted=predictedShipPosition(p,visualSnapshotElapsed());
+        const targetX=predicted.x,targetY=predicted.y;
         const v=guestVisual.get(p.id)||{x:targetX,y:targetY};guestVisual.set(p.id,v);
         const alpha=1-Math.exp(-Math.min(dt,.1)*13);
         if(Math.hypot(v.x-targetX,v.y-targetY)>3){v.x=targetX;v.y=targetY;}
@@ -2147,7 +2198,7 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
       }
     }
     if((mode==='local'||mode==='pass'||mode==='host'||mode==='bot')&&engine){tickBot(ts);engine.tick(dt);finishPassPlayback(ts);updatePassTimer(ts);tickOnlineTurn(ts);const s=engine.publicState();renderGameState(s);
-      if(mode==='host'&&connections.size&&(s.movementMode==='auto'||s.version!==lastSentVersion||s.projectiles.length>0||s.airstrikes.length>0||s.effects.length>0||s.players.some(p=>p.hp<=0&&p.sinkAge<5))&&ts-lastSent>80)sendState();}
+      if(mode==='host'&&connections.size&&(s.version!==lastSentVersion||ts-lastSent>=1000)&&ts-lastSent>80)sendState();}
     updateOnlineHud(ts);drawScene(visibleGameState,ts);
   }
   requestAnimationFrame(frame);
