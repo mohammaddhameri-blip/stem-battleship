@@ -936,7 +936,11 @@ body.game-active .topbar{flex:0 0 auto;min-height:42px;padding-block:4px;gap:6px
             if(blocksAlly(nextX,nextY)){nextX=p.x;nextY=p.y;}
           }
         }
-        p.vx=(nextX-p.x)/dt;p.vy=(nextY-p.y)/dt;
+        // Network prediction uses the heading AFTER reflection, not the displacement
+        // during the single frame that struck the boundary.
+        const stationary=nextX===p.x&&nextY===p.y;
+        p.vx=stationary?0:(radio?dx:p.cruiseDX)*(radio?.48:.38);
+        p.vy=stationary?0:(radio?dy:p.cruiseDY)*(radio?.48:.38);
         p.x=nextX;p.y=nextY;
         p.col=CLAMP(Math.floor(p.x),p.team===0?0:SPLIT,p.team===0?SPLIT-1:COLS-1);
         p.row=CLAMP(Math.floor(p.y),0,ROWS-1);
