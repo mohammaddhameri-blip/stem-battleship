@@ -307,3 +307,7 @@ body{background:radial-gradient(ellipse at 80% 0%,#19456a 0%,transparent 53%),li
   #battle .battle-tools .zoom-controls #aim-assist-btn{min-width:68px}
   #battle .battle-tools .zoom-controls #zoom-fit{min-width:72px}
 }
+
+/* Pre-rendered ocean: 10 fps, three-second local loop beneath the transparent canvas. */
+#battle #battle-canvas{background-color:#062538;background-image:url("./ocean-loop.gif"),linear-gradient(135deg,#062538 0%,#136079 48%,#031e32 100%);background-size:100% 100%;background-repeat:no-repeat}
+@media(prefers-reduced-motion:reduce){#battle #battle-canvas{background-image:linear-gradient(135deg,#062538 0%,#136079 48%,#031e32 100%)}}

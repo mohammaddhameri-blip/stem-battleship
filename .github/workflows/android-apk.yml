@@ -12,6 +12,7 @@ on:
       - 'rbt-questions.js'
       - 'naval-theme.css'
       - 'naval-scene.svg'
+      - 'ocean-loop.gif'
       - 'manifest.webmanifest'
       - 'icons/**'
       - '.github/workflows/android-apk.yml'
@@ -99,7 +100,7 @@ jobs:
       - name: Bundle current game for offline local play
         run: |
           mkdir -p android/app/src/main/assets/game
-          cp index.html audio-engine.js question-ms.js advanced-questions.js rbt-questions.js naval-theme.css naval-scene.svg manifest.webmanifest android/app/src/main/assets/game/
+          cp index.html audio-engine.js question-ms.js advanced-questions.js rbt-questions.js naval-theme.css naval-scene.svg ocean-loop.gif manifest.webmanifest android/app/src/main/assets/game/
           cp -R icons android/app/src/main/assets/game/
           test -s android/app/src/main/assets/game/index.html
           test -s android/app/src/main/assets/game/audio-engine.js
